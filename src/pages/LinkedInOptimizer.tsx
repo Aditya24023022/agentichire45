@@ -4,20 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { FeaturePageLayout } from "@/components/FeaturePageLayout";
 import { JobUrlInput } from "@/components/JobUrlInput";
 import { ResumeUpload } from "@/components/ResumeUpload";
-import { PDFDownload } from "@/components/PDFDownload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { FileText, Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { Linkedin, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAIAgent } from "@/hooks/useAIAgent";
 
-const ResumeOptimizer = () => {
+const LinkedInOptimizer = () => {
   const navigate = useNavigate();
   const [resume, setResume] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [copied, setCopied] = useState(false);
-  const { result, loading, generate } = useAIAgent({ type: "resume", successMessage: "Resume optimized!" });
+  const { result, loading, generate } = useAIAgent({ type: "linkedin", successMessage: "LinkedIn profile optimized!" });
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -28,7 +27,7 @@ const ResumeOptimizer = () => {
 
   const handleOptimize = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
-      toast.error("Please fill in both your resume and the job description");
+      toast.error("Please fill in both your profile info and target role");
       return;
     }
     await generate({ resume: resume.trim(), jobDescription: jobDescription.trim() });
@@ -43,23 +42,19 @@ const ResumeOptimizer = () => {
 
   return (
     <FeaturePageLayout
-      icon={FileText}
-      title="Resume Optimizer"
-      description="Optimize your resume to match job descriptions and pass ATS systems"
+      icon={Linkedin}
+      title="LinkedIn Profile Optimizer"
+      description="Optimize your LinkedIn profile to attract recruiters"
     >
       <div className="grid lg:grid-cols-2 gap-8">
         <div className="space-y-6">
           <JobUrlInput onJobScraped={(content) => setJobDescription(content)} />
-          
           <ResumeUpload onResumeExtracted={(text) => setResume(text)} />
 
           <div className="space-y-3">
-            <Label htmlFor="resume" className="text-foreground text-base">
-              Your Resume (or paste as text)
-            </Label>
+            <Label className="text-foreground text-base">Current Profile / Resume</Label>
             <Textarea
-              id="resume"
-              placeholder="Paste your resume content here or upload a file above..."
+              placeholder="Paste your current LinkedIn profile or resume..."
               value={resume}
               onChange={(e) => setResume(e.target.value)}
               className="min-h-[150px] bg-card border-border resize-none"
@@ -67,12 +62,9 @@ const ResumeOptimizer = () => {
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="jd" className="text-foreground text-base">
-              Job Description
-            </Label>
+            <Label className="text-foreground text-base">Target Role Description</Label>
             <Textarea
-              id="jd"
-              placeholder="Paste the job description here or use the URL scraper above..."
+              placeholder="Describe your target role or paste a job description..."
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
               className="min-h-[150px] bg-card border-border resize-none"
@@ -88,7 +80,7 @@ const ResumeOptimizer = () => {
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Optimize Resume
+                Optimize LinkedIn
               </>
             )}
           </Button>
@@ -96,28 +88,25 @@ const ResumeOptimizer = () => {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-foreground text-base">Optimized Resume</Label>
+            <Label className="text-foreground text-base">Optimized Profile</Label>
             {result && (
-              <div className="flex gap-2">
-                <PDFDownload content={result} fileName="optimized-resume" variant="outline" />
-                <Button variant="ghost" size="sm" onClick={handleCopy}>
-                  {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={handleCopy}>
+                {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+              </Button>
             )}
           </div>
           <div className="min-h-[500px] p-6 rounded-xl bg-card border border-border overflow-auto">
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground">AI is optimizing your resume...</p>
+                <p className="text-muted-foreground">AI is optimizing your profile...</p>
               </div>
             ) : result ? (
               <pre className="whitespace-pre-wrap text-sm text-foreground/90 font-sans">{result}</pre>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <FileText className="w-12 h-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">Your optimized resume will appear here</p>
+                <Linkedin className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">Optimized profile will appear here</p>
               </div>
             )}
           </div>
@@ -127,4 +116,4 @@ const ResumeOptimizer = () => {
   );
 };
 
-export default ResumeOptimizer;
+export default LinkedInOptimizer;
