@@ -4,20 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { FeaturePageLayout } from "@/components/FeaturePageLayout";
 import { JobUrlInput } from "@/components/JobUrlInput";
 import { ResumeUpload } from "@/components/ResumeUpload";
-import { PDFDownload } from "@/components/PDFDownload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { FileText, Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { DollarSign, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAIAgent } from "@/hooks/useAIAgent";
 
-const ResumeOptimizer = () => {
+const SalaryCoach = () => {
   const navigate = useNavigate();
   const [resume, setResume] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [copied, setCopied] = useState(false);
-  const { result, loading, generate } = useAIAgent({ type: "resume", successMessage: "Resume optimized!" });
+  const { result, loading, generate } = useAIAgent({ type: "salary", successMessage: "Negotiation guide ready!" });
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -26,9 +25,9 @@ const ResumeOptimizer = () => {
     });
   }, [navigate]);
 
-  const handleOptimize = async () => {
+  const handleGenerate = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
-      toast.error("Please fill in both your resume and the job description");
+      toast.error("Please fill in both your experience and the job/role");
       return;
     }
     await generate({ resume: resume.trim(), jobDescription: jobDescription.trim() });
@@ -43,23 +42,19 @@ const ResumeOptimizer = () => {
 
   return (
     <FeaturePageLayout
-      icon={FileText}
-      title="Resume Optimizer"
-      description="Optimize your resume to match job descriptions and pass ATS systems"
+      icon={DollarSign}
+      title="Salary Negotiation Coach"
+      description="Get scripts and strategies to negotiate your best compensation"
     >
       <div className="grid lg:grid-cols-2 gap-8">
         <div className="space-y-6">
           <JobUrlInput onJobScraped={(content) => setJobDescription(content)} />
-          
           <ResumeUpload onResumeExtracted={(text) => setResume(text)} />
 
           <div className="space-y-3">
-            <Label htmlFor="resume" className="text-foreground text-base">
-              Your Resume (or paste as text)
-            </Label>
+            <Label className="text-foreground text-base">Your Experience / Resume</Label>
             <Textarea
-              id="resume"
-              placeholder="Paste your resume content here or upload a file above..."
+              placeholder="Paste your resume or describe your experience level..."
               value={resume}
               onChange={(e) => setResume(e.target.value)}
               className="min-h-[150px] bg-card border-border resize-none"
@@ -67,28 +62,25 @@ const ResumeOptimizer = () => {
           </div>
 
           <div className="space-y-3">
-            <Label htmlFor="jd" className="text-foreground text-base">
-              Job Description
-            </Label>
+            <Label className="text-foreground text-base">Job / Role Description</Label>
             <Textarea
-              id="jd"
-              placeholder="Paste the job description here or use the URL scraper above..."
+              placeholder="Paste the job description or describe the role..."
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
               className="min-h-[150px] bg-card border-border resize-none"
             />
           </div>
 
-          <Button onClick={handleOptimize} variant="hero" size="lg" className="w-full" disabled={loading}>
+          <Button onClick={handleGenerate} variant="hero" size="lg" className="w-full" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Optimizing...
+                Generating...
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Optimize Resume
+                Get Negotiation Tips
               </>
             )}
           </Button>
@@ -96,28 +88,25 @@ const ResumeOptimizer = () => {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-foreground text-base">Optimized Resume</Label>
+            <Label className="text-foreground text-base">Negotiation Guide</Label>
             {result && (
-              <div className="flex gap-2">
-                <PDFDownload content={result} fileName="optimized-resume" variant="outline" />
-                <Button variant="ghost" size="sm" onClick={handleCopy}>
-                  {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={handleCopy}>
+                {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+              </Button>
             )}
           </div>
           <div className="min-h-[500px] p-6 rounded-xl bg-card border border-border overflow-auto">
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground">AI is optimizing your resume...</p>
+                <p className="text-muted-foreground">AI is preparing your negotiation guide...</p>
               </div>
             ) : result ? (
               <pre className="whitespace-pre-wrap text-sm text-foreground/90 font-sans">{result}</pre>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <FileText className="w-12 h-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">Your optimized resume will appear here</p>
+                <DollarSign className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">Negotiation tips will appear here</p>
               </div>
             )}
           </div>
@@ -127,4 +116,4 @@ const ResumeOptimizer = () => {
   );
 };
 
-export default ResumeOptimizer;
+export default SalaryCoach;

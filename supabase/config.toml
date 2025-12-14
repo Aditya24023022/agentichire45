@@ -1,1 +1,7 @@
 project_id = "ghmxlercrwilpdmxxsab"
+
+[functions.ai-career-agent]
+verify_jwt = false
+
+[functions.scrape-job]
+verify_jwt = false

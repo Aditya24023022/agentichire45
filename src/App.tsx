@@ -9,6 +9,16 @@ import Dashboard from "./pages/Dashboard";
 import ResumeOptimizer from "./pages/ResumeOptimizer";
 import EmailWriter from "./pages/EmailWriter";
 import InterviewPrep from "./pages/InterviewPrep";
+import ATSAnalyzer from "./pages/ATSAnalyzer";
+import CoverLetter from "./pages/CoverLetter";
+import LinkedInOptimizer from "./pages/LinkedInOptimizer";
+import SkillsGap from "./pages/SkillsGap";
+import SalaryCoach from "./pages/SalaryCoach";
+import FollowUpEmail from "./pages/FollowUpEmail";
+import JobMatch from "./pages/JobMatch";
+import PortfolioDescriber from "./pages/PortfolioDescriber";
+import NetworkingMessages from "./pages/NetworkingMessages";
+import CareerAdvisor from "./pages/CareerAdvisor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +36,16 @@ const App = () => (
           <Route path="/resume-optimizer" element={<ResumeOptimizer />} />
           <Route path="/email-writer" element={<EmailWriter />} />
           <Route path="/interview-prep" element={<InterviewPrep />} />
+          <Route path="/ats-analyzer" element={<ATSAnalyzer />} />
+          <Route path="/cover-letter" element={<CoverLetter />} />
+          <Route path="/linkedin-optimizer" element={<LinkedInOptimizer />} />
+          <Route path="/skills-gap" element={<SkillsGap />} />
+          <Route path="/salary-coach" element={<SalaryCoach />} />
+          <Route path="/follow-up-email" element={<FollowUpEmail />} />
+          <Route path="/job-match" element={<JobMatch />} />
+          <Route path="/portfolio-describer" element={<PortfolioDescriber />} />
+          <Route path="/networking-messages" element={<NetworkingMessages />} />
+          <Route path="/career-advisor" element={<CareerAdvisor />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
