@@ -3,7 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { FileText, Mail, MessageSquare, ArrowRight, Sparkles } from "lucide-react";
+import { 
+  FileText, Mail, MessageSquare, ArrowRight, Sparkles, Target, FileSignature, 
+  Linkedin, TrendingUp, DollarSign, MailCheck, Search, Briefcase, Users, Compass 
+} from "lucide-react";
 import { User } from "@supabase/supabase-js";
 
 const Dashboard = () => {
@@ -44,13 +47,35 @@ const Dashboard = () => {
 
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
 
+  const coreTools = [
+    { icon: FileText, title: "Resume Optimizer", description: "Optimize your resume with ATS-friendly keywords", href: "/resume-optimizer" },
+    { icon: FileSignature, title: "Cover Letter", description: "Create compelling personalized cover letters", href: "/cover-letter" },
+    { icon: Mail, title: "HR Email Writer", description: "Generate professional job application emails", href: "/email-writer" },
+    { icon: MessageSquare, title: "Interview Prep", description: "Get customized interview questions", href: "/interview-prep" },
+  ];
+
+  const analysisTools = [
+    { icon: Target, title: "ATS Analyzer", description: "Check your resume's ATS compatibility score", href: "/ats-analyzer" },
+    { icon: TrendingUp, title: "Skills Gap", description: "Identify missing skills and learning paths", href: "/skills-gap" },
+    { icon: Search, title: "Job Match", description: "See how well you match a job posting", href: "/job-match" },
+    { icon: Compass, title: "Career Advisor", description: "Get strategic career guidance", href: "/career-advisor" },
+  ];
+
+  const networkingTools = [
+    { icon: Linkedin, title: "LinkedIn Optimizer", description: "Optimize your profile for recruiters", href: "/linkedin-optimizer" },
+    { icon: MailCheck, title: "Follow-up Emails", description: "Create post-interview thank you emails", href: "/follow-up-email" },
+    { icon: Users, title: "Networking Messages", description: "Write messages that get responses", href: "/networking-messages" },
+    { icon: DollarSign, title: "Salary Coach", description: "Negotiation scripts and strategies", href: "/salary-coach" },
+    { icon: Briefcase, title: "Portfolio Describer", description: "Turn projects into portfolio entries", href: "/portfolio-describer" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           {/* Welcome Section */}
-          <div className="mb-12">
+          <div className="mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/50 mb-4">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm text-accent-foreground">AI Career Assistant</span>
@@ -59,49 +84,69 @@ const Dashboard = () => {
               Welcome back, <span className="text-gradient">{userName}</span>
             </h1>
             <p className="text-lg text-muted-foreground">
-              Choose a tool to enhance your job application
+              13 AI-powered tools to supercharge your job search
             </p>
           </div>
 
-          {/* Feature Cards */}
-          <div className="grid md:grid-cols-3 gap-6">
-            <FeatureCard
-              icon={FileText}
-              title="Resume Optimizer"
-              description="Upload your resume and job description. Our AI agent will optimize your resume with relevant keywords and ATS-friendly formatting."
-              href="/resume-optimizer"
-              color="primary"
-            />
-            <FeatureCard
-              icon={Mail}
-              title="HR Email Writer"
-              description="Generate professional job application emails tailored to the specific role and company you're applying to."
-              href="/email-writer"
-              color="primary"
-            />
-            <FeatureCard
-              icon={MessageSquare}
-              title="Interview Prep"
-              description="Get customized interview questions based on the job description to prepare for your upcoming interviews."
-              href="/interview-prep"
-              color="primary"
-            />
+          {/* Core Tools */}
+          <div className="mb-10">
+            <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              Core Tools
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {coreTools.map((tool) => (
+                <FeatureCard key={tool.href} {...tool} />
+              ))}
+            </div>
+          </div>
+
+          {/* Analysis Tools */}
+          <div className="mb-10">
+            <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              Analysis & Planning
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {analysisTools.map((tool) => (
+                <FeatureCard key={tool.href} {...tool} />
+              ))}
+            </div>
+          </div>
+
+          {/* Networking Tools */}
+          <div className="mb-10">
+            <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary" />
+              Networking & Communication
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {networkingTools.map((tool) => (
+                <FeatureCard key={tool.href} {...tool} compact />
+              ))}
+            </div>
           </div>
 
           {/* Quick Tips */}
-          <div className="mt-16">
-            <h2 className="text-xl font-display font-semibold text-foreground mb-6">Quick Tips</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="p-6 rounded-xl bg-card border border-border">
-                <h3 className="font-semibold text-foreground mb-2">Start with Resume Optimization</h3>
+          <div className="mt-12">
+            <h2 className="text-lg font-display font-semibold text-foreground mb-4">Quick Tips</h2>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="p-5 rounded-xl bg-card border border-border">
+                <h3 className="font-semibold text-foreground mb-2">📎 Upload or Paste URL</h3>
                 <p className="text-sm text-muted-foreground">
-                  First, optimize your resume for the specific job. Then use the optimized content for your email and interview prep.
+                  You can upload your resume as PDF or paste a job URL to auto-extract descriptions.
                 </p>
               </div>
-              <div className="p-6 rounded-xl bg-card border border-border">
-                <h3 className="font-semibold text-foreground mb-2">Include Full Job Descriptions</h3>
+              <div className="p-5 rounded-xl bg-card border border-border">
+                <h3 className="font-semibold text-foreground mb-2">📄 Download as PDF</h3>
                 <p className="text-sm text-muted-foreground">
-                  The more detailed the job description, the better our AI agents can tailor your materials.
+                  Generated resumes and cover letters can be downloaded directly as PDF files.
+                </p>
+              </div>
+              <div className="p-5 rounded-xl bg-card border border-border">
+                <h3 className="font-semibold text-foreground mb-2">🎯 Start with ATS Check</h3>
+                <p className="text-sm text-muted-foreground">
+                  Run your resume through the ATS Analyzer first to identify improvement areas.
                 </p>
               </div>
             </div>
@@ -117,29 +162,25 @@ const FeatureCard = ({
   title,
   description,
   href,
-  color,
+  compact = false,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
   href: string;
-  color: string;
+  compact?: boolean;
 }) => (
   <Link
     to={href}
-    className="group relative rounded-2xl p-8 bg-card border border-border hover:border-primary/50 transition-all duration-300 hover:shadow-glow"
+    className={`group relative rounded-xl ${compact ? 'p-4' : 'p-5'} bg-card border border-border hover:border-primary/50 transition-all duration-300 hover:shadow-glow`}
   >
-    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
     <div className="relative">
-      <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
-        <Icon className="w-7 h-7 text-primary" />
+      <div className={`${compact ? 'w-10 h-10 mb-3' : 'w-12 h-12 mb-4'} rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors`}>
+        <Icon className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} text-primary`} />
       </div>
-      <h3 className="text-xl font-display font-bold text-foreground mb-3">{title}</h3>
-      <p className="text-muted-foreground mb-6">{description}</p>
-      <Button variant="ghost" className="group-hover:bg-primary/10 gap-2">
-        Get Started
-        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-      </Button>
+      <h3 className={`${compact ? 'text-sm' : 'text-base'} font-display font-bold text-foreground mb-1`}>{title}</h3>
+      <p className={`${compact ? 'text-xs' : 'text-sm'} text-muted-foreground line-clamp-2`}>{description}</p>
     </div>
   </Link>
 );
