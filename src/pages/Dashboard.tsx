@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { 
   FileText, Mail, MessageSquare, ArrowRight, Sparkles, Target, FileSignature, 
-  Linkedin, TrendingUp, DollarSign, MailCheck, Search, Briefcase, Users, Compass 
+  Linkedin, TrendingUp, DollarSign, MailCheck, Search, Briefcase, Users, Compass, Video 
 } from "lucide-react";
 import { User } from "@supabase/supabase-js";
 
@@ -87,6 +87,29 @@ const Dashboard = () => {
               13 AI-powered tools to supercharge your job search
             </p>
           </div>
+
+          {/* Featured: Mock Interview */}
+          <Link
+            to="/mock-interview"
+            className="group relative mb-10 p-6 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 border border-primary/30 hover:border-primary/60 transition-all duration-300 hover:shadow-glow block"
+          >
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative flex flex-col md:flex-row md:items-center gap-4">
+              <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                <Video className="w-8 h-8 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-xl font-display font-bold text-foreground">Mock Interview Agent</h2>
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">NEW</span>
+                </div>
+                <p className="text-muted-foreground">
+                  Practice with an AI interviewer powered by voice. Get real-time feedback and scoring on 7 customized questions.
+                </p>
+              </div>
+              <ArrowRight className="w-6 h-6 text-primary group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
           {/* Core Tools */}
           <div className="mb-10">

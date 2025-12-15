@@ -30,13 +30,13 @@ serve(async (req) => {
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            {
+          {
               role: 'system',
-              content: `You are an expert interviewer. Generate exactly 5 interview questions based on the job description and resume. Return ONLY a JSON array of objects with "question" and "category" fields. Categories should be: "Technical", "Behavioral", "Situational", "Experience", or "Culture Fit". Make questions specific and challenging.`
+              content: `You are an expert interviewer. Generate exactly 7 interview questions based on the job description and resume. Return ONLY a JSON array of objects with "question" and "category" fields. Categories should be: "Technical", "Behavioral", "Situational", "Experience", or "Culture Fit". Make questions specific and challenging. Include at least 2 technical questions, 2 behavioral questions, and mix of others.`
             },
             {
               role: 'user',
-              content: `Job Description:\n${jobDescription}\n\nResume:\n${resume}\n\nGenerate 5 interview questions.`
+              content: `Job Description:\n${jobDescription}\n\nResume:\n${resume}\n\nGenerate 7 interview questions.`
             }
           ],
           temperature: 0.7,
