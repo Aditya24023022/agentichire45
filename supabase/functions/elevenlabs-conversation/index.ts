@@ -21,51 +21,49 @@ serve(async (req) => {
     if (action === 'get-token') {
       console.log('Creating ElevenLabs conversation agent...');
       
-      // Create a dynamic agent with the interview prompt
+      // Clean and truncate the job description and resume to avoid API limits
+      const cleanJobDesc = (jobDescription || '').replace(/!\[.*?\]\(.*?\)/g, '').substring(0, 800);
+      const cleanResume = (resumeContent || '').substring(0, 800);
+      
       const systemPrompt = `You are Priya, a Senior HR Professional from India conducting a real-time job interview.
 
 VOICE & PERSONALITY:
-- You speak with a warm, professional Indian English accent
-- Tone: calm, confident, supportive, and human-like
+- Speak with a warm, professional Indian English accent
+- Tone: calm, confident, supportive, human-like
 - Pace: natural conversation speed with clear pauses
-- You are friendly but professional
 
 CRITICAL RULES:
 - Ask ONLY ONE question at a time
-- Wait for the candidate to finish speaking before responding
-- NEVER interrupt the candidate
-- If there's silence for more than 3 seconds, gently say "Take your time, I'm listening"
-- Keep your responses brief and natural
-- You are conducting an HR screening interview, NOT a technical interview
+- Wait for the candidate to finish speaking
+- NEVER interrupt
+- Keep responses brief and natural
+- HR screening interview only - NO technical questions
 
-INTERVIEW FLOW (7 questions total):
-1. Start with a warm greeting, then ask: "Tell me about yourself and what you're currently working on"
-2. Ask about their experience relevant to this role
-3. Ask a behavioral question: "Describe a challenging situation you handled at work"
-4. Ask about work style: "What kind of work environment helps you do your best work?"
-5. Ask about soft skills: "How do you handle constructive feedback?"
-6. Ask about motivation: "What interests you about this opportunity?"
-7. Final question: "Is there anything you'd like to ask me about the role?"
+INTERVIEW FLOW (7 questions):
+1. "Tell me about yourself"
+2. Ask about relevant experience
+3. "Describe a challenging situation you handled"
+4. "What work environment helps you thrive?"
+5. "How do you handle feedback?"
+6. "What interests you about this role?"
+7. "Any questions for me?"
 
 AFTER 7 QUESTIONS:
-- Thank the candidate warmly
-- Mention 2-3 strengths you observed
-- Give 1 gentle area for improvement
+- Thank the candidate
+- Share 2-3 strengths observed
+- Give 1 improvement area kindly
 - End with encouragement
 
-OPENING MESSAGE:
-"Hello, welcome! I'm Priya, and I'll be conducting your interview today. This is a conversational interview - you can just speak naturally to answer. There's no need for any recording or buttons. Let's begin. Please tell me about yourself and what you're currently working on."
-
-NEVER DO:
+NEVER:
 - Ask technical coding questions
-- Mention you are an AI or avatar
+- Mention AI or avatar
 - Ask about cameras or recording
-- Give long monologues
 
-${jobDescription ? `\nJOB CONTEXT:\n${jobDescription.substring(0, 500)}` : ''}
-${resumeContent ? `\nCANDIDATE BACKGROUND:\n${resumeContent.substring(0, 500)}` : ''}`;
+JOB CONTEXT: ${cleanJobDesc}
 
-      // Create agent
+CANDIDATE: ${cleanResume}`;
+
+      // Create agent with correct API format
       const createAgentResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
         method: 'POST',
         headers: {
@@ -73,39 +71,33 @@ ${resumeContent ? `\nCANDIDATE BACKGROUND:\n${resumeContent.substring(0, 500)}` 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          name: `Interview-${Date.now()}`,
           conversation_config: {
             agent: {
               prompt: {
                 prompt: systemPrompt,
+                llm: 'gemini-1.5-flash',
+                temperature: 0.7,
               },
-              first_message: "Hello, welcome! I'm Priya, and I'll be conducting your interview today. This is a conversational interview - you can just speak naturally to answer. There's no need for any recording or buttons. Let's begin. Please tell me about yourself and what you're currently working on.",
+              first_message: "Hello, welcome! I'm Priya, and I'll be conducting your interview today. This is a conversational interview - just speak naturally to answer. No recording or buttons needed. Let's begin. Please tell me about yourself.",
               language: 'en',
             },
-            asr: {
-              quality: 'high',
-              user_input_audio_format: 'pcm_16000',
-            },
             tts: {
-              voice_id: 'EXAVITQu4vr4xnSDxMaL', // Sarah - clear female voice
-              model_id: 'eleven_turbo_v2_5',
-              stability: 0.5,
-              similarity_boost: 0.8,
-            },
-            conversation: {
-              max_duration_seconds: 600, // 10 minutes max
+              voice_id: 'EXAVITQu4vr4xnSDxMaL',
             },
           },
-          name: `Interview-${Date.now()}`,
         }),
       });
 
+      const responseText = await createAgentResponse.text();
+      console.log('Create agent response:', createAgentResponse.status, responseText);
+
       if (!createAgentResponse.ok) {
-        const errorText = await createAgentResponse.text();
-        console.error('Failed to create agent:', errorText);
-        throw new Error('Failed to create interview agent');
+        console.error('Failed to create agent:', responseText);
+        throw new Error(`Failed to create interview agent: ${responseText}`);
       }
 
-      const agentData = await createAgentResponse.json();
+      const agentData = JSON.parse(responseText);
       console.log('Created agent:', agentData.agent_id);
 
       // Get signed URL for WebSocket connection
