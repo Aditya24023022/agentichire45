@@ -3,6 +3,9 @@ project_id = "ghmxlercrwilpdmxxsab"
 [functions.ai-career-agent]
 verify_jwt = false
 
+[functions.ai-career-agent-stream]
+verify_jwt = false
+
 [functions.scrape-job]
 verify_jwt = false
 
