@@ -16,16 +16,18 @@ serve(async (req) => {
       throw new Error('ELEVENLABS_API_KEY is not configured');
     }
 
-    const { action, jobDescription, resumeContent } = await req.json();
+    const { action, jobDescription, resumeContent, interviewType = 'hr' } = await req.json();
 
     if (action === 'get-token') {
-      console.log('Creating ElevenLabs conversation agent v3...');
+      console.log(`Creating ElevenLabs ${interviewType} interview agent...`);
       
       // Clean and truncate the job description and resume to avoid API limits
       const cleanJobDesc = (jobDescription || '').replace(/!\[.*?\]\(.*?\)/g, '').substring(0, 600);
       const cleanResume = (resumeContent || '').substring(0, 600);
       
-      const systemPrompt = `You are Priya, an HR Professional conducting an interview.
+      const isHR = interviewType === 'hr';
+      
+      const hrPrompt = `You are Priya, an HR Professional conducting an interview.
 
 RULES:
 - Ask ONE question at a time
@@ -47,7 +49,38 @@ After 7 questions: Thank them, share 2 strengths, 1 improvement area.
 JOB: ${cleanJobDesc}
 CANDIDATE: ${cleanResume}`;
 
-      const firstMessage = "Hello! I'm Priya, your interviewer today. Just speak naturally - no buttons needed. Let's begin. Tell me about yourself.";
+      const technicalPrompt = `You are Arjun, a Senior Technical Lead conducting a technical interview.
+
+RULES:
+- Ask ONE question at a time
+- Wait for response before next question
+- Focus on technical skills mentioned in job description
+- Ask about coding concepts, system design, problem-solving
+- Probe deeper if answers are vague
+
+QUESTIONS (7 total based on job requirements):
+1. Walk me through your technical background
+2. Ask about a specific technology from their resume
+3. Ask a coding concept question (data structures, algorithms)
+4. System design scenario question
+5. Debugging/problem-solving approach
+6. Ask about a challenging technical project they worked on
+7. Questions about the role/team?
+
+After 7 questions: Thank them, provide technical feedback on 2 strengths, 1 area to improve.
+
+JOB REQUIREMENTS: ${cleanJobDesc}
+CANDIDATE SKILLS: ${cleanResume}`;
+
+      const systemPrompt = isHR ? hrPrompt : technicalPrompt;
+      
+      const hrFirstMessage = "Hello! I'm Priya, your HR interviewer today. Just speak naturally - no buttons needed. Let's begin. Tell me about yourself.";
+      const technicalFirstMessage = "Hi there! I'm Arjun, and I'll be conducting your technical interview today. Just speak naturally. Let's start - can you walk me through your technical background?";
+      
+      const firstMessage = isHR ? hrFirstMessage : technicalFirstMessage;
+      
+      // Use different voices for HR vs Technical
+      const voiceId = isHR ? 'EXAVITQu4vr4xnSDxMaL' : 'N2lVS1w4EtoT3dr4eOWO'; // Sarah for HR, Callum for Technical
 
       // Create agent with correct format for English agents
       const createAgentResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
@@ -69,8 +102,8 @@ CANDIDATE: ${cleanResume}`;
               language: 'en',
             },
             tts: {
-              model_id: 'eleven_turbo_v2', // Using turbo v2 as required for English
-              voice_id: 'EXAVITQu4vr4xnSDxMaL', // Sarah voice
+              model_id: 'eleven_turbo_v2',
+              voice_id: voiceId,
             },
           },
         }),

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-interview]
 verify_jwt = false
+
+[functions.career-counselor]
+verify_jwt = false
