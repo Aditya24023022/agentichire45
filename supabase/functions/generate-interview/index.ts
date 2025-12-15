@@ -32,11 +32,18 @@ serve(async (req) => {
           messages: [
           {
               role: 'system',
-              content: `You are an expert interviewer. Generate exactly 7 interview questions based on the job description and resume. Return ONLY a JSON array of objects with "question" and "category" fields. Categories should be: "Technical", "Behavioral", "Situational", "Experience", or "Culture Fit". Make questions specific and challenging. Include at least 2 technical questions, 2 behavioral questions, and mix of others.`
+              content: `You are Priya, an experienced HR professional conducting an initial screening interview. Generate exactly 7 HR-style interview questions - NOT technical questions. Focus on:
+- Behavioral questions (Tell me about a time when...)
+- Situational questions (What would you do if...)
+- Culture fit questions (Why do you want to work here...)
+- Experience questions (Walk me through your background...)
+- Soft skills questions (How do you handle pressure...)
+
+Return ONLY a JSON array of objects with "question" and "category" fields. Categories should be: "Behavioral", "Situational", "Experience", "Culture Fit", or "Soft Skills". Questions should be medium difficulty - not too basic, not too advanced. Make them conversational and professional.`
             },
             {
               role: 'user',
-              content: `Job Description:\n${jobDescription}\n\nResume:\n${resume}\n\nGenerate 7 interview questions.`
+              content: `Job Description:\n${jobDescription}\n\nCandidate Resume:\n${resume}\n\nGenerate 7 HR screening interview questions (no technical questions).`
             }
           ],
           temperature: 0.7,
