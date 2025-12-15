@@ -70,14 +70,18 @@ const MockInterview = () => {
   const enableCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user", width: 320, height: 240 },
+        video: { facingMode: "user", width: 640, height: 480 },
         audio: false 
       });
       setCameraStream(stream);
       setCameraEnabled(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      // Set video source after a small delay to ensure ref is ready
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
       toast.success("Camera enabled - you look great!");
     } catch (error) {
       console.error("Camera error:", error);
@@ -90,6 +94,9 @@ const MockInterview = () => {
       cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setCameraEnabled(false);
   };
 
@@ -101,23 +108,52 @@ const MockInterview = () => {
         window.speechSynthesis.cancel();
         
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1.1;
+        utterance.rate = 0.85;
+        utterance.pitch = 1.2; // Higher pitch for female voice
         
-        // Try to find an Indian English voice
+        // Get all available voices
         const voices = window.speechSynthesis.getVoices();
-        const indianVoice = voices.find(v => 
-          v.lang === 'en-IN' || 
-          v.name.toLowerCase().includes('india') ||
-          v.name.includes('Veena') ||
-          v.name.includes('Lekha')
+        console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`));
+        
+        // Priority 1: Indian English female voices
+        let selectedVoice = voices.find(v => 
+          v.lang === 'en-IN' && (
+            v.name.toLowerCase().includes('female') ||
+            v.name.includes('Aditi') ||
+            v.name.includes('Raveena') ||
+            v.name.includes('Priya')
+          )
         );
         
-        const fallbackVoice = voices.find(v => 
-          v.name.includes('Google') && v.lang.startsWith('en')
-        ) || voices.find(v => v.lang.startsWith('en') && v.name.includes('Female'));
+        // Priority 2: Any Indian English voice
+        if (!selectedVoice) {
+          selectedVoice = voices.find(v => v.lang === 'en-IN');
+        }
         
-        utterance.voice = indianVoice || fallbackVoice || voices.find(v => v.lang.startsWith('en')) || null;
+        // Priority 3: Female English voices
+        if (!selectedVoice) {
+          selectedVoice = voices.find(v => 
+            v.lang.startsWith('en') && (
+              v.name.toLowerCase().includes('female') ||
+              v.name.includes('Samantha') ||
+              v.name.includes('Karen') ||
+              v.name.includes('Moira') ||
+              v.name.includes('Tessa') ||
+              v.name.includes('Fiona') ||
+              v.name.includes('Victoria') ||
+              v.name.includes('Zira')
+            )
+          );
+        }
+        
+        // Priority 4: Any English voice with higher pitch to sound more feminine
+        if (!selectedVoice) {
+          selectedVoice = voices.find(v => v.lang.startsWith('en'));
+          utterance.pitch = 1.4; // Even higher pitch as fallback
+        }
+        
+        utterance.voice = selectedVoice || null;
+        console.log('Selected voice:', selectedVoice?.name || 'default');
         
         utterance.onend = () => {
           setIsSpeaking(false);
@@ -175,37 +211,64 @@ const MockInterview = () => {
     }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
+  // Speech Recognition for real-time voice input
+  const startListening = async () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition not supported. Please type your answer.");
+      return;
+    }
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+        toast.success("Listening... Speak your answer");
+      };
+
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          }
+        }
+        if (finalTranscript) {
+          setUserAnswer(prev => prev + finalTranscript);
         }
       };
 
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(track => track.stop());
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+        if (event.error !== 'no-speech') {
+          toast.error("Failed to recognize speech. Please try again or type.");
+        }
       };
 
-      mediaRecorder.start();
-      setIsRecording(true);
-      toast.success("Recording started - speak your answer");
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      mediaRecorderRef.current = recognition as any;
+      recognition.start();
     } catch (error) {
-      console.error("Recording error:", error);
-      toast.error("Failed to access microphone");
+      console.error("Speech recognition error:", error);
+      toast.error("Failed to start listening. Please type your answer.");
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+  const stopListening = () => {
+    if (mediaRecorderRef.current) {
+      (mediaRecorderRef.current as any).stop?.();
       setIsRecording(false);
-      toast.info("Recording stopped - please type or review your answer");
+      toast.success("Stopped listening");
     }
   };
 
@@ -453,34 +516,41 @@ const MockInterview = () => {
             <p className="text-lg text-foreground">{questions[currentQuestionIndex].question}</p>
           </div>
 
-          {/* Answer Input */}
+          {/* Answer Input - Real-time */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-foreground">Your Answer</Label>
+              <Label className="text-foreground">Your Answer (speak or type)</Label>
               <Button
                 variant={isRecording ? "destructive" : "outline"}
                 size="sm"
-                onClick={isRecording ? stopRecording : startRecording}
+                onClick={isRecording ? stopListening : startListening}
+                disabled={isSpeaking}
               >
                 {isRecording ? (
                   <>
                     <MicOff className="w-4 h-4" />
-                    Stop Recording
+                    Stop Speaking
                   </>
                 ) : (
                   <>
                     <Mic className="w-4 h-4" />
-                    Record Answer
+                    Speak Answer
                   </>
                 )}
               </Button>
             </div>
             <Textarea
-              placeholder="Type your answer here or use the microphone..."
+              placeholder="Speak your answer directly or type here..."
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
-              className="min-h-[150px] bg-card border-border resize-none"
+              className="min-h-[120px] bg-card border-border resize-none"
             />
+            {isRecording && (
+              <div className="flex items-center gap-2 text-sm text-primary animate-pulse">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                Listening to your answer...
+              </div>
+            )}
           </div>
 
           <Button onClick={submitAnswer} variant="hero" size="lg" className="w-full" disabled={loading || !userAnswer.trim()}>
