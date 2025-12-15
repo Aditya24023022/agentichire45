@@ -15,13 +15,18 @@ interface AIInterviewerProps {
     questions: string[];
     duration: number;
   }) => void;
+  interviewType?: 'hr' | 'technical';
 }
 
 const AIInterviewer: React.FC<AIInterviewerProps> = ({
   jobDescription,
   resumeContent,
-  onInterviewComplete
+  onInterviewComplete,
+  interviewType = 'hr'
 }) => {
+  const isHR = interviewType === 'hr';
+  const interviewerName = isHR ? 'Priya' : 'Arjun';
+  const interviewerTitle = isHR ? 'Senior HR Professional' : 'Technical Lead';
   const [isConnecting, setIsConnecting] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [transcript, setTranscript] = useState<{ speaker: 'agent' | 'user'; text: string }[]>([]);
@@ -109,7 +114,8 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
         body: { 
           action: 'get-token',
           jobDescription,
-          resumeContent
+          resumeContent,
+          interviewType
         }
       });
 
@@ -166,13 +172,21 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
                 : 'border-muted'
           }`}
         >
-          <img 
-            src={interviewerAvatar} 
-            alt="Priya - HR Interviewer"
-            className={`w-full h-full object-cover transition-transform duration-300 ${
+          {isHR ? (
+            <img 
+              src={interviewerAvatar} 
+              alt={`${interviewerName} - ${interviewerTitle}`}
+              className={`w-full h-full object-cover transition-transform duration-300 ${
+                conversation.isSpeaking ? 'scale-105' : ''
+              }`}
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-6xl transition-transform duration-300 ${
               conversation.isSpeaking ? 'scale-105' : ''
-            }`}
-          />
+            }`}>
+              👨‍💻
+            </div>
+          )}
         </div>
         
         {/* Speaking Indicator - Sound waves animation */}
@@ -205,8 +219,8 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
 
       {/* Status */}
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">Priya</h2>
-        <p className="text-muted-foreground text-sm">Senior HR Professional</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-1">{interviewerName}</h2>
+        <p className="text-muted-foreground text-sm">{interviewerTitle}</p>
         
         {isConnecting && (
           <div className="flex items-center justify-center gap-2 mt-4 text-primary">
@@ -252,7 +266,7 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
                       : 'bg-accent/20 text-accent-foreground'
                   }`}
                 >
-                  {entry.speaker === 'agent' ? 'P' : 'You'}
+                  {entry.speaker === 'agent' ? interviewerName[0] : 'You'}
                 </div>
                 <div 
                   className={`flex-1 p-3 rounded-xl text-sm ${

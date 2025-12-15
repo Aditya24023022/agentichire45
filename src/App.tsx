@@ -12,6 +12,7 @@ import ResumeOptimizer from "./pages/ResumeOptimizer";
 import EmailWriter from "./pages/EmailWriter";
 import InterviewPrep from "./pages/InterviewPrep";
 import MockInterview from "./pages/MockInterview";
+import TechnicalInterview from "./pages/TechnicalInterview";
 import ATSAnalyzer from "./pages/ATSAnalyzer";
 import CoverLetter from "./pages/CoverLetter";
 import LinkedInOptimizer from "./pages/LinkedInOptimizer";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/email-writer" element={<EmailWriter />} />
           <Route path="/interview-prep" element={<InterviewPrep />} />
           <Route path="/mock-interview" element={<MockInterview />} />
+          <Route path="/technical-interview" element={<TechnicalInterview />} />
           <Route path="/ats-analyzer" element={<ATSAnalyzer />} />
           <Route path="/cover-letter" element={<CoverLetter />} />
           <Route path="/linkedin-optimizer" element={<LinkedInOptimizer />} />

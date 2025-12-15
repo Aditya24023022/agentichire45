@@ -5,9 +5,10 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { 
   FileText, Mail, MessageSquare, ArrowRight, Sparkles, Target, FileSignature, 
-  Linkedin, TrendingUp, DollarSign, MailCheck, Search, Briefcase, Users, Compass, Video 
+  Linkedin, TrendingUp, DollarSign, MailCheck, Search, Briefcase, Users, Compass, Video, Code 
 } from "lucide-react";
 import { User } from "@supabase/supabase-js";
+import CareerChatbot from "@/components/CareerChatbot";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -74,103 +75,139 @@ const Dashboard = () => {
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
-          {/* Welcome Section */}
-          <div className="mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/50 mb-4">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm text-accent-foreground">AI Career Assistant</span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2">
-              Welcome back, <span className="text-gradient">{userName}</span>
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              13 AI-powered tools to supercharge your job search
-            </p>
-          </div>
-
-          {/* Featured: Mock Interview */}
-          <Link
-            to="/mock-interview"
-            className="group relative mb-10 p-6 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 border border-primary/30 hover:border-primary/60 transition-all duration-300 hover:shadow-glow block"
-          >
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative flex flex-col md:flex-row md:items-center gap-4">
-              <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                <Video className="w-8 h-8 text-primary" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-display font-bold text-foreground">Mock Interview Agent</h2>
-                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">NEW</span>
+          <div className="flex gap-6">
+            {/* Main Content */}
+            <div className="flex-1 min-w-0">
+              {/* Welcome Section */}
+              <div className="mb-10">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/50 mb-4">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-accent-foreground">AI Career Assistant</span>
                 </div>
-                <p className="text-muted-foreground">
-                  Practice with an AI interviewer powered by voice. Get real-time feedback and scoring on 7 customized questions.
+                <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2">
+                  Welcome back, <span className="text-gradient">{userName}</span>
+                </h1>
+                <p className="text-lg text-muted-foreground">
+                  14 AI-powered tools to supercharge your job search
                 </p>
               </div>
-              <ArrowRight className="w-6 h-6 text-primary group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
 
-          {/* Core Tools */}
-          <div className="mb-10">
-            <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary" />
-              Core Tools
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {coreTools.map((tool) => (
-                <FeatureCard key={tool.href} {...tool} />
-              ))}
-            </div>
-          </div>
+              {/* Featured: Interview Options */}
+              <div className="grid md:grid-cols-2 gap-4 mb-10">
+                <Link
+                  to="/mock-interview"
+                  className="group relative p-6 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 border border-primary/30 hover:border-primary/60 transition-all duration-300 hover:shadow-glow block"
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative flex flex-col gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                      <Video className="w-7 h-7 text-primary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-lg font-display font-bold text-foreground">HR Interview</h2>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">Priya</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Practice behavioral & situational questions with our HR interviewer
+                      </p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
 
-          {/* Analysis Tools */}
-          <div className="mb-10">
-            <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary" />
-              Analysis & Planning
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {analysisTools.map((tool) => (
-                <FeatureCard key={tool.href} {...tool} />
-              ))}
-            </div>
-          </div>
-
-          {/* Networking Tools */}
-          <div className="mb-10">
-            <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary" />
-              Networking & Communication
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {networkingTools.map((tool) => (
-                <FeatureCard key={tool.href} {...tool} compact />
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Tips */}
-          <div className="mt-12">
-            <h2 className="text-lg font-display font-semibold text-foreground mb-4">Quick Tips</h2>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-xl bg-card border border-border">
-                <h3 className="font-semibold text-foreground mb-2">📎 Upload or Paste URL</h3>
-                <p className="text-sm text-muted-foreground">
-                  You can upload your resume as PDF or paste a job URL to auto-extract descriptions.
-                </p>
+                <Link
+                  to="/technical-interview"
+                  className="group relative p-6 rounded-2xl bg-gradient-to-br from-accent/20 via-accent/10 to-primary/10 border border-accent/30 hover:border-accent/60 transition-all duration-300 hover:shadow-glow block"
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative flex flex-col gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-accent/20 flex items-center justify-center group-hover:bg-accent/30 transition-colors">
+                      <Code className="w-7 h-7 text-accent" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-lg font-display font-bold text-foreground">Technical Interview</h2>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent/20 text-accent">Arjun</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Practice coding concepts & system design with our tech lead
+                      </p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-accent group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
               </div>
-              <div className="p-5 rounded-xl bg-card border border-border">
-                <h3 className="font-semibold text-foreground mb-2">📄 Download as PDF</h3>
-                <p className="text-sm text-muted-foreground">
-                  Generated resumes and cover letters can be downloaded directly as PDF files.
-                </p>
+
+              {/* Core Tools */}
+              <div className="mb-10">
+                <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  Core Tools
+                </h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {coreTools.map((tool) => (
+                    <FeatureCard key={tool.href} {...tool} />
+                  ))}
+                </div>
               </div>
-              <div className="p-5 rounded-xl bg-card border border-border">
-                <h3 className="font-semibold text-foreground mb-2">🎯 Start with ATS Check</h3>
-                <p className="text-sm text-muted-foreground">
-                  Run your resume through the ATS Analyzer first to identify improvement areas.
-                </p>
+
+              {/* Analysis Tools */}
+              <div className="mb-10">
+                <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  Analysis & Planning
+                </h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {analysisTools.map((tool) => (
+                    <FeatureCard key={tool.href} {...tool} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Networking Tools */}
+              <div className="mb-10">
+                <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  Networking & Communication
+                </h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {networkingTools.map((tool) => (
+                    <FeatureCard key={tool.href} {...tool} compact />
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Tips */}
+              <div className="mt-12">
+                <h2 className="text-lg font-display font-semibold text-foreground mb-4">Quick Tips</h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="p-5 rounded-xl bg-card border border-border">
+                    <h3 className="font-semibold text-foreground mb-2">📎 Upload or Paste URL</h3>
+                    <p className="text-sm text-muted-foreground">
+                      You can upload your resume as PDF or paste a job URL to auto-extract descriptions.
+                    </p>
+                  </div>
+                  <div className="p-5 rounded-xl bg-card border border-border">
+                    <h3 className="font-semibold text-foreground mb-2">📄 Download as PDF</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Generated resumes and cover letters can be downloaded directly as PDF files.
+                    </p>
+                  </div>
+                  <div className="p-5 rounded-xl bg-card border border-border">
+                    <h3 className="font-semibold text-foreground mb-2">🎯 Start with ATS Check</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Run your resume through the ATS Analyzer first to identify improvement areas.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Career Chatbot Sidebar */}
+            <div className="hidden lg:block w-80 xl:w-96 flex-shrink-0">
+              <div className="sticky top-24 h-[calc(100vh-120px)]">
+                <CareerChatbot />
               </div>
             </div>
           </div>
