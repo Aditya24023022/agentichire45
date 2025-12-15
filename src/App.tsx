@@ -5,10 +5,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import ResumeOptimizer from "./pages/ResumeOptimizer";
 import EmailWriter from "./pages/EmailWriter";
 import InterviewPrep from "./pages/InterviewPrep";
+import MockInterview from "./pages/MockInterview";
 import ATSAnalyzer from "./pages/ATSAnalyzer";
 import CoverLetter from "./pages/CoverLetter";
 import LinkedInOptimizer from "./pages/LinkedInOptimizer";
@@ -32,10 +35,13 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/resume-optimizer" element={<ResumeOptimizer />} />
           <Route path="/email-writer" element={<EmailWriter />} />
           <Route path="/interview-prep" element={<InterviewPrep />} />
+          <Route path="/mock-interview" element={<MockInterview />} />
           <Route path="/ats-analyzer" element={<ATSAnalyzer />} />
           <Route path="/cover-letter" element={<CoverLetter />} />
           <Route path="/linkedin-optimizer" element={<LinkedInOptimizer />} />
