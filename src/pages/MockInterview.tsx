@@ -7,11 +7,11 @@ import { ResumeUpload } from "@/components/ResumeUpload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Video, Loader2, Play, CheckCircle2, Star, ArrowLeft, Mic } from "lucide-react";
+import { Video, Play, ArrowLeft, Mic, CheckCircle2, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import interviewerAvatar from "@/assets/interviewer-avatar.png";
 import AIInterviewer from "@/components/AIInterviewer";
+import { StreamingOutput } from "@/components/StreamingOutput";
 
 interface InterviewResults {
   score: number;
@@ -19,6 +19,7 @@ interface InterviewResults {
   responses: string[];
   questions: string[];
   duration: number;
+  report?: string;
 }
 
 const MockInterview = () => {
@@ -29,6 +30,8 @@ const MockInterview = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<InterviewResults | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [report, setReport] = useState("");
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -46,24 +49,60 @@ const MockInterview = () => {
     setPhase("interview");
   };
 
+  const generateDetailedReport = async (data: InterviewResults) => {
+    setGeneratingReport(true);
+    try {
+      const allResponses = data.questions.map((q, i) => ({
+        question: q,
+        response: data.responses[i] || "No response provided"
+      }));
+
+      const response = await supabase.functions.invoke("generate-interview", {
+        body: {
+          action: "final-evaluation",
+          jobDescription,
+          allResponses,
+          interviewType: "hr"
+        }
+      });
+
+      if (response.data?.report) {
+        setReport(response.data.report);
+        return response.data.report;
+      } else if (response.data?.summary) {
+        const reportText = `## Interview Summary\n\n${response.data.summary}\n\n### Strengths\n${(response.data.strengths || []).map((s: string) => `- ${s}`).join('\n')}\n\n### Areas for Improvement\n${(response.data.improvements || []).map((i: string) => `- ${i}`).join('\n')}`;
+        setReport(reportText);
+        return reportText;
+      }
+    } catch (error) {
+      console.error("Failed to generate report:", error);
+      toast.error("Failed to generate detailed report");
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   const handleInterviewComplete = async (data: InterviewResults) => {
     setResults(data);
     setPhase("results");
 
+    // Generate detailed report
+    const reportContent = await generateDetailedReport(data);
+
     // Save to database
     if (userId) {
       try {
-        await supabase.from("interview_sessions").insert({
+        await supabase.from("interview_sessions").insert([{
           user_id: userId,
           job_description: jobDescription,
           resume_content: resume,
-          questions: data.questions as any,
-          responses: data.responses as any,
+          questions: data.questions,
+          responses: data.responses,
           score: data.score,
-          feedback: data.feedback,
+          feedback: reportContent || data.feedback,
           duration_seconds: data.duration,
           completed_at: new Date().toISOString(),
-        });
+        }]);
         toast.success("Interview saved to your profile!");
       } catch (error) {
         console.error("Failed to save interview:", error);
@@ -74,6 +113,7 @@ const MockInterview = () => {
   const resetInterview = () => {
     setPhase("setup");
     setResults(null);
+    setReport("");
   };
 
   const formatDuration = (seconds: number): string => {
@@ -82,11 +122,39 @@ const MockInterview = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const downloadReport = () => {
+    const content = `
+INTERVIEW REPORT
+================
+Date: ${new Date().toLocaleDateString()}
+Duration: ${results ? formatDuration(results.duration) : 'N/A'}
+Score: ${results?.score || 0}/100
+
+${report}
+
+---
+CONVERSATION TRANSCRIPT
+---
+${results?.questions.map((q, i) => `
+Q: ${q}
+A: ${results?.responses[i] || 'No response'}
+`).join('\n')}
+    `.trim();
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interview-report-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <FeaturePageLayout
       icon={Video}
-      title="Mock Interview"
-      description="Practice with Priya, your AI HR interviewer - real-time conversation with instant feedback"
+      title="HR Mock Interview"
+      description="Practice with Priya, your AI HR interviewer - real-time conversation with detailed feedback report"
     >
       {phase === "setup" && (
         <div className="max-w-2xl mx-auto space-y-6">
@@ -101,7 +169,7 @@ const MockInterview = () => {
               <div>
                 <h3 className="text-lg font-semibold text-foreground">Meet Priya</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your AI HR interviewer. She'll conduct a real-time voice interview with 7 questions and provide personalized feedback.
+                  Your AI HR interviewer. She'll conduct a real-time voice interview with personalized questions based on YOUR resume and the job description.
                 </p>
               </div>
             </div>
@@ -113,11 +181,11 @@ const MockInterview = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
-                <span>No recording needed</span>
+                <span>Personalized questions</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full">
-                <Video className="w-4 h-4 text-accent" />
-                <span>No camera required</span>
+                <FileText className="w-4 h-4 text-accent" />
+                <span>Detailed report</span>
               </div>
             </div>
           </div>
@@ -146,12 +214,12 @@ const MockInterview = () => {
           </div>
 
           <div className="p-4 rounded-xl bg-muted/30 border border-border">
-            <h4 className="text-sm font-medium text-foreground mb-2">How it works:</h4>
+            <h4 className="text-sm font-medium text-foreground mb-2">What to expect:</h4>
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
               <li>Allow microphone access when prompted</li>
-              <li>Priya will greet you and start asking questions</li>
+              <li>Priya will ask 7 personalized HR questions based on your profile</li>
               <li>Just speak naturally to answer - no buttons needed</li>
-              <li>After 7 questions, you'll receive your score and feedback</li>
+              <li>Receive a comprehensive report with scores and improvement areas</li>
             </ol>
           </div>
 
@@ -163,7 +231,7 @@ const MockInterview = () => {
             disabled={loading || !resume.trim() || !jobDescription.trim()}
           >
             <Play className="w-5 h-5" />
-            Start Interview
+            Start HR Interview
           </Button>
         </div>
       )}
@@ -173,58 +241,72 @@ const MockInterview = () => {
           jobDescription={jobDescription}
           resumeContent={resume}
           onInterviewComplete={handleInterviewComplete}
+          interviewType="hr"
         />
       )}
 
       {phase === "results" && results && (
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-6">
           {/* Score Card */}
           <div className="p-8 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 border border-primary/30 text-center">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
+            <div className="w-28 h-28 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center border-4 border-primary/40">
               <span className="text-4xl font-bold text-primary">{results.score}</span>
             </div>
             <h2 className="text-2xl font-semibold text-foreground mb-2">Interview Complete!</h2>
             <p className="text-muted-foreground">Duration: {formatDuration(results.duration)}</p>
-            
-            <div className="flex justify-center gap-1 mt-4">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
-                  className={`w-6 h-6 ${i < Math.floor(results.score / 20) ? 'text-yellow-500 fill-yellow-500' : 'text-muted'}`}
-                />
-              ))}
-            </div>
           </div>
 
-          {/* Feedback */}
+          {/* Detailed Report */}
           <div className="p-6 rounded-xl bg-card border border-border">
-            <h3 className="text-lg font-semibold text-foreground mb-3">Feedback from Priya</h3>
-            <p className="text-muted-foreground leading-relaxed">{results.feedback}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">📋 Detailed Interview Report</h3>
+              {report && !generatingReport && (
+                <Button variant="outline" size="sm" onClick={downloadReport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              )}
+            </div>
+            
+            <div className="min-h-[200px]">
+              <StreamingOutput
+                content={report}
+                isStreaming={generatingReport}
+                loading={generatingReport}
+                placeholder={
+                  <p className="text-muted-foreground">Generating detailed report...</p>
+                }
+              />
+            </div>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
               <p className="text-3xl font-bold text-primary">{results.questions.length}</p>
-              <p className="text-sm text-muted-foreground">Questions Asked</p>
+              <p className="text-sm text-muted-foreground">Questions</p>
             </div>
             <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
               <p className="text-3xl font-bold text-accent">{results.responses.length}</p>
-              <p className="text-sm text-muted-foreground">Responses Given</p>
+              <p className="text-sm text-muted-foreground">Responses</p>
+            </div>
+            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
+              <p className="text-3xl font-bold text-green-500">{formatDuration(results.duration)}</p>
+              <p className="text-sm text-muted-foreground">Duration</p>
             </div>
           </div>
 
           {/* Conversation Summary */}
           {results.questions.length > 0 && (
             <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Conversation Summary</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">📝 Conversation Transcript</h3>
               <div className="space-y-4 max-h-64 overflow-y-auto">
                 {results.questions.map((q, i) => (
-                  <div key={i} className="space-y-2">
-                    <p className="text-sm text-primary font-medium">Priya: {q}</p>
+                  <div key={i} className="space-y-2 p-3 rounded-lg bg-muted/20">
+                    <p className="text-sm text-primary font-medium">🎤 Priya: {q}</p>
                     {results.responses[i] && (
-                      <p className="text-sm text-muted-foreground pl-4 border-l-2 border-muted">
-                        You: {results.responses[i]}
+                      <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/30">
+                        👤 You: {results.responses[i]}
                       </p>
                     )}
                   </div>
