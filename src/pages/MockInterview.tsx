@@ -50,25 +50,45 @@ const MockInterview = () => {
     });
   }, [navigate]);
 
-  const speakText = async (text: string) => {
-    setIsSpeaking(true);
-    try {
-      const response = await supabase.functions.invoke("elevenlabs-conversation", {
-        body: { action: "text-to-speech", text, voiceId: "JBFqnCBsd6RMkjVDRZzb" },
-      });
-
-      if (response.error) throw response.error;
-
-      const audioContent = response.data.audioContent;
-      const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
-      audioRef.current = audio;
+  const speakText = async (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      setIsSpeaking(true);
       
-      audio.onended = () => setIsSpeaking(false);
-      await audio.play();
-    } catch (error) {
-      console.error("TTS error:", error);
-      setIsSpeaking(false);
-    }
+      // Use browser's built-in Web Speech API (free, no API key needed)
+      if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.95;
+        utterance.pitch = 1;
+        
+        // Try to find a good voice
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => 
+          v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel')
+        ) || voices.find(v => v.lang.startsWith('en'));
+        
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+        
+        utterance.onend = () => {
+          setIsSpeaking(false);
+          resolve();
+        };
+        
+        utterance.onerror = () => {
+          setIsSpeaking(false);
+          resolve();
+        };
+        
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setIsSpeaking(false);
+        resolve();
+      }
+    });
   };
 
   const startInterview = async () => {
