@@ -19,51 +19,37 @@ serve(async (req) => {
     const { action, jobDescription, resumeContent } = await req.json();
 
     if (action === 'get-token') {
-      console.log('Creating ElevenLabs conversation agent...');
+      console.log('Creating ElevenLabs conversation agent v3...');
       
       // Clean and truncate the job description and resume to avoid API limits
-      const cleanJobDesc = (jobDescription || '').replace(/!\[.*?\]\(.*?\)/g, '').substring(0, 800);
-      const cleanResume = (resumeContent || '').substring(0, 800);
+      const cleanJobDesc = (jobDescription || '').replace(/!\[.*?\]\(.*?\)/g, '').substring(0, 600);
+      const cleanResume = (resumeContent || '').substring(0, 600);
       
-      const systemPrompt = `You are Priya, a Senior HR Professional from India conducting a real-time job interview.
+      const systemPrompt = `You are Priya, an HR Professional conducting an interview.
 
-VOICE & PERSONALITY:
-- Speak with a warm, professional Indian English accent
-- Tone: calm, confident, supportive, human-like
-- Pace: natural conversation speed with clear pauses
+RULES:
+- Ask ONE question at a time
+- Wait for response before next question
+- Keep responses brief
+- NO technical questions - HR only
 
-CRITICAL RULES:
-- Ask ONLY ONE question at a time
-- Wait for the candidate to finish speaking
-- NEVER interrupt
-- Keep responses brief and natural
-- HR screening interview only - NO technical questions
+QUESTIONS (7 total):
+1. Tell me about yourself
+2. Your relevant experience
+3. A challenging work situation
+4. Ideal work environment
+5. How you handle feedback
+6. Why this role interests you
+7. Questions for me?
 
-INTERVIEW FLOW (7 questions):
-1. "Tell me about yourself"
-2. Ask about relevant experience
-3. "Describe a challenging situation you handled"
-4. "What work environment helps you thrive?"
-5. "How do you handle feedback?"
-6. "What interests you about this role?"
-7. "Any questions for me?"
+After 7 questions: Thank them, share 2 strengths, 1 improvement area.
 
-AFTER 7 QUESTIONS:
-- Thank the candidate
-- Share 2-3 strengths observed
-- Give 1 improvement area kindly
-- End with encouragement
-
-NEVER:
-- Ask technical coding questions
-- Mention AI or avatar
-- Ask about cameras or recording
-
-JOB CONTEXT: ${cleanJobDesc}
-
+JOB: ${cleanJobDesc}
 CANDIDATE: ${cleanResume}`;
 
-      // Create agent with correct API format
+      const firstMessage = "Hello! I'm Priya, your interviewer today. Just speak naturally - no buttons needed. Let's begin. Tell me about yourself.";
+
+      // Create agent with correct format for English agents
       const createAgentResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
         method: 'POST',
         headers: {
@@ -76,29 +62,31 @@ CANDIDATE: ${cleanResume}`;
             agent: {
               prompt: {
                 prompt: systemPrompt,
-                llm: 'gemini-1.5-flash',
+                llm: 'gpt-4o-mini', // Using OpenAI model which is well supported
                 temperature: 0.7,
               },
-              first_message: "Hello, welcome! I'm Priya, and I'll be conducting your interview today. This is a conversational interview - just speak naturally to answer. No recording or buttons needed. Let's begin. Please tell me about yourself.",
+              first_message: firstMessage,
               language: 'en',
             },
             tts: {
-              voice_id: 'EXAVITQu4vr4xnSDxMaL',
+              model_id: 'eleven_turbo_v2', // Using turbo v2 as required for English
+              voice_id: 'EXAVITQu4vr4xnSDxMaL', // Sarah voice
             },
           },
         }),
       });
 
       const responseText = await createAgentResponse.text();
-      console.log('Create agent response:', createAgentResponse.status, responseText);
+      console.log('Create agent response status:', createAgentResponse.status);
+      console.log('Create agent response:', responseText.substring(0, 500));
 
       if (!createAgentResponse.ok) {
         console.error('Failed to create agent:', responseText);
-        throw new Error(`Failed to create interview agent: ${responseText}`);
+        throw new Error(`Agent creation failed: ${createAgentResponse.status}`);
       }
 
       const agentData = JSON.parse(responseText);
-      console.log('Created agent:', agentData.agent_id);
+      console.log('Created agent with ID:', agentData.agent_id);
 
       // Get signed URL for WebSocket connection
       const signedUrlResponse = await fetch(
