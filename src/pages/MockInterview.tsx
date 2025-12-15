@@ -91,7 +91,7 @@ const MockInterview = () => {
       toast.success("Interview started!");
 
       // Speak introduction
-      await speakText("Welcome to your mock interview. I'll be asking you 5 questions based on the job description. Take your time to answer each question thoroughly. Let's begin with the first question.");
+      await speakText("Welcome to your mock interview. I'll be asking you 7 questions based on the job description. Take your time to answer each question thoroughly. Let's begin with the first question.");
       
       setTimeout(() => {
         speakText(response.data.questions[0].question);
