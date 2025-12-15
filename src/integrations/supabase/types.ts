@@ -52,6 +52,48 @@ export type Database = {
           },
         ]
       }
+      interview_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration_seconds: number | null
+          feedback: string | null
+          id: string
+          job_description: string | null
+          questions: Json | null
+          responses: Json | null
+          resume_content: string | null
+          score: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          feedback?: string | null
+          id?: string
+          job_description?: string | null
+          questions?: Json | null
+          responses?: Json | null
+          resume_content?: string | null
+          score?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          feedback?: string | null
+          id?: string
+          job_description?: string | null
+          questions?: Json | null
+          responses?: Json | null
+          resume_content?: string | null
+          score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
