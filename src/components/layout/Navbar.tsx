@@ -1,13 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Briefcase, LogOut, Menu, X } from "lucide-react";
+import { Briefcase, LogOut, Menu, X, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export const Navbar = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
                 <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -53,8 +53,12 @@ export const Navbar = () => {
                 <Link to="/interview-prep" className="text-muted-foreground hover:text-foreground transition-colors">
                   Interview
                 </Link>
-                <Link to="/profile" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Profile
+                <Link 
+                  to="/profile" 
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-medium">Profile</span>
                 </Link>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
