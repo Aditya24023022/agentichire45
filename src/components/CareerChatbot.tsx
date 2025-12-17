@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Bot, User, Sparkles } from "lucide-react";
+import { Send, Loader2, Bot, User, Sparkles, TrendingUp, Target, Zap } from "lucide-react";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -11,6 +12,12 @@ interface Message {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/career-counselor`;
+
+const quickPrompts = [
+  { icon: TrendingUp, text: "Career path for", bg: "bg-emerald-500/20", color: "text-emerald-400" },
+  { icon: Target, text: "Skills to learn", bg: "bg-blue-500/20", color: "text-blue-400" },
+  { icon: Zap, text: "Quick interview tips", bg: "bg-amber-500/20", color: "text-amber-400" },
+];
 
 const CareerChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -25,10 +32,11 @@ const CareerChatbot = () => {
     }
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (customInput?: string) => {
+    const msgText = customInput || input;
+    if (!msgText.trim() || isLoading) return;
 
-    const userMsg: Message = { role: "user", content: input.trim() };
+    const userMsg: Message = { role: "user", content: msgText.trim() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
@@ -126,15 +134,20 @@ const CareerChatbot = () => {
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="text-center py-8">
-            <Bot className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground mb-4">
-              Hi! I'm your AI Career Counselor. Ask me about:
-            </p>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p className="bg-muted/30 px-3 py-2 rounded-lg">🎯 Career path suggestions</p>
-              <p className="bg-muted/30 px-3 py-2 rounded-lg">📚 Learning roadmaps</p>
-              <p className="bg-muted/30 px-3 py-2 rounded-lg">💡 Skill development tips</p>
+          <div className="text-center py-4">
+            <Bot className="w-10 h-10 text-primary mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground mb-3">Quick start:</p>
+            <div className="space-y-2">
+              {quickPrompts.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(p.text)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg ${p.bg} hover:opacity-80 transition-opacity text-left`}
+                >
+                  <p.icon className={`w-4 h-4 ${p.color}`} />
+                  <span className="text-xs text-foreground">{p.text}</span>
+                </button>
+              ))}
             </div>
           </div>
         ) : (
@@ -150,13 +163,19 @@ const CareerChatbot = () => {
                   </div>
                 )}
                 <div
-                  className={`max-w-[80%] rounded-xl px-4 py-2 ${
+                  className={`max-w-[85%] rounded-xl px-3 py-2 ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted/50 text-foreground"
+                      : "bg-gradient-to-br from-muted/60 to-muted/30 border border-border/50"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  {msg.role === "assistant" ? (
+                    <div className="text-xs prose prose-invert prose-xs max-w-none [&_p]:mb-1 [&_ul]:mb-1 [&_li]:mb-0 [&_strong]:text-primary [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_table]:text-[10px]">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-xs">{msg.content}</p>
+                  )}
                 </div>
                 {msg.role === "user" && (
                   <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
@@ -192,7 +211,7 @@ const CareerChatbot = () => {
             disabled={isLoading}
           />
           <Button
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={!input.trim() || isLoading}
             size="icon"
             variant="hero"
