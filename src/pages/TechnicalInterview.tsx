@@ -28,6 +28,8 @@ const TechnicalInterview = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<InterviewResults | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [report, setReport] = useState("");
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -62,9 +64,53 @@ const TechnicalInterview = () => {
     setPhase("interview");
   };
 
+  const generateDetailedReport = async (data: InterviewResults) => {
+    setGeneratingReport(true);
+    try {
+      const allResponses = data.questions.map((q, i) => ({
+        question: q,
+        response: data.responses[i] || "No response provided",
+      }));
+
+      const response = await supabase.functions.invoke("generate-interview", {
+        body: {
+          action: "final-evaluation",
+          jobDescription,
+          allResponses,
+          interviewType: "technical",
+        },
+      });
+
+      if (response.data?.report) {
+        setReport(response.data.report);
+        return response.data.report;
+      }
+
+      if (response.data?.summary) {
+        const reportText = `## Technical Interview Summary\n\n${response.data.summary}\n\n### Strengths\n${(response.data.strengths || [])
+          .map((s: string) => `- ${s}`)
+          .join("\n")}\n\n### Areas for Improvement\n${(response.data.improvements || [])
+          .map((i: string) => `- ${i}`)
+          .join("\n")}`;
+        setReport(reportText);
+        return reportText;
+      }
+
+      return undefined;
+    } catch (error) {
+      console.error("Failed to generate report:", error);
+      toast.error("Failed to generate detailed report");
+      return undefined;
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   const handleInterviewComplete = async (data: InterviewResults) => {
     setResults(data);
     setPhase("results");
+
+    const reportContent = await generateDetailedReport(data);
 
     if (userId) {
       try {
@@ -75,7 +121,7 @@ const TechnicalInterview = () => {
           questions: data.questions as any,
           responses: data.responses as any,
           score: data.score,
-          feedback: `[Technical Interview] ${data.feedback}`,
+          feedback: reportContent || `[Technical Interview] ${data.feedback}`,
           duration_seconds: data.duration,
           completed_at: new Date().toISOString(),
         });
@@ -89,6 +135,7 @@ const TechnicalInterview = () => {
   const resetInterview = () => {
     setPhase("setup");
     setResults(null);
+    setReport("");
   };
 
   const formatDuration = (seconds: number): string => {
@@ -191,14 +238,21 @@ const TechnicalInterview = () => {
 
       {phase === "results" && results && (
         <div className="max-w-4xl mx-auto space-y-6">
-          <InterviewReport
-            score={results.score}
-            feedback={results.feedback}
-            questions={results.questions}
-            responses={results.responses}
-            duration={results.duration}
-            interviewType="technical"
-          />
+          {generatingReport ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Generating your detailed interview report...</p>
+            </div>
+          ) : (
+            <InterviewReport
+              score={results.score}
+              feedback={report || results.feedback}
+              questions={results.questions}
+              responses={results.responses}
+              duration={results.duration}
+              interviewType="technical"
+            />
+          )}
 
           {/* Conversation Transcript */}
           {results.questions.length > 0 && (

@@ -11,28 +11,59 @@ interface InterviewReportProps {
 }
 
 const InterviewReport = ({ score, feedback, questions, responses, duration, interviewType }: InterviewReportProps) => {
-  // Calculate skill scores based on responses (simulated analysis)
-  const skillScores = interviewType === 'hr' ? [
-    { skill: "Communication", score: Math.min(100, score + Math.random() * 15 - 5), fullMark: 100 },
-    { skill: "Confidence", score: Math.min(100, score + Math.random() * 20 - 10), fullMark: 100 },
-    { skill: "Problem Solving", score: Math.min(100, score + Math.random() * 15 - 8), fullMark: 100 },
-    { skill: "Teamwork", score: Math.min(100, score + Math.random() * 18 - 6), fullMark: 100 },
-    { skill: "Leadership", score: Math.min(100, score + Math.random() * 20 - 12), fullMark: 100 },
-    { skill: "Adaptability", score: Math.min(100, score + Math.random() * 15 - 5), fullMark: 100 },
-  ] : [
-    { skill: "Technical Knowledge", score: Math.min(100, score + Math.random() * 15 - 5), fullMark: 100 },
-    { skill: "Problem Solving", score: Math.min(100, score + Math.random() * 20 - 10), fullMark: 100 },
-    { skill: "System Design", score: Math.min(100, score + Math.random() * 15 - 8), fullMark: 100 },
-    { skill: "Code Quality", score: Math.min(100, score + Math.random() * 18 - 6), fullMark: 100 },
-    { skill: "Communication", score: Math.min(100, score + Math.random() * 20 - 12), fullMark: 100 },
-    { skill: "Best Practices", score: Math.min(100, score + Math.random() * 15 - 5), fullMark: 100 },
-  ];
+  // Deterministic pseudo-random (stable charts per session)
+  const hashString = (s: string) => {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  };
+
+  const mulberry32 = (a: number) => {
+    return () => {
+      let t = (a += 0x6D2B79F5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  const seed = hashString(`${interviewType}|${score}|${questions.join("\n")}|${responses.join("\n")}`);
+  const rnd = mulberry32(seed);
+
+  // Calculate skill scores based on responses (simulated analysis, but stable)
+  const jitter = (max: number) => (rnd() * max * 2 - max);
+
+  const skillScores = interviewType === 'hr'
+    ? [
+        { skill: "Communication", score: Math.min(100, score + jitter(6)), fullMark: 100 },
+        { skill: "Confidence", score: Math.min(100, score + jitter(8)), fullMark: 100 },
+        { skill: "Problem Solving", score: Math.min(100, score + jitter(7)), fullMark: 100 },
+        { skill: "Teamwork", score: Math.min(100, score + jitter(7)), fullMark: 100 },
+        { skill: "Leadership", score: Math.min(100, score + jitter(9)), fullMark: 100 },
+        { skill: "Adaptability", score: Math.min(100, score + jitter(6)), fullMark: 100 },
+      ]
+    : [
+        { skill: "Technical Knowledge", score: Math.min(100, score + jitter(6)), fullMark: 100 },
+        { skill: "Problem Solving", score: Math.min(100, score + jitter(8)), fullMark: 100 },
+        { skill: "System Design", score: Math.min(100, score + jitter(7)), fullMark: 100 },
+        { skill: "Code Quality", score: Math.min(100, score + jitter(7)), fullMark: 100 },
+        { skill: "Communication", score: Math.min(100, score + jitter(9)), fullMark: 100 },
+        { skill: "Best Practices", score: Math.min(100, score + jitter(6)), fullMark: 100 },
+      ];
 
   // Performance breakdown
-  const performanceData = skillScores.map(s => ({
+  const performanceData = skillScores.map((s) => ({
     name: s.skill.split(' ')[0],
     score: Math.round(s.score),
-    color: s.score >= 75 ? 'hsl(var(--primary))' : s.score >= 50 ? 'hsl(45, 100%, 50%)' : 'hsl(0, 70%, 50%)'
+    color:
+      s.score >= 75
+        ? 'hsl(var(--primary))'
+        : s.score >= 50
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--destructive))',
   }));
 
   // Identify strengths and areas to improve
