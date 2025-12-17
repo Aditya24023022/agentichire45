@@ -8,21 +8,34 @@ import {
   Linkedin, TrendingUp, DollarSign, MailCheck, Search, Briefcase, Users, Compass, Video, Code 
 } from "lucide-react";
 import { User } from "@supabase/supabase-js";
-import CareerChatbot from "@/components/CareerChatbot";
+import FloatingChatbot from "@/components/FloatingChatbot";
+import ProfileOnboarding from "@/components/ProfileOnboarding";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
     
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         navigate("/auth");
       } else {
         setUser(session.user);
+        
+        // Check if profile is completed
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("profile_completed")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (!profile?.profile_completed) {
+          setShowOnboarding(true);
+        }
       }
       setLoading(false);
     });
@@ -72,6 +85,13 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {showOnboarding && user && (
+        <ProfileOnboarding 
+          userId={user.id} 
+          onComplete={() => setShowOnboarding(false)}
+          onSkip={() => setShowOnboarding(false)}
+        />
+      )}
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
@@ -203,16 +223,12 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-
-            {/* Career Chatbot Sidebar */}
-            <div className="hidden lg:block w-80 xl:w-96 flex-shrink-0">
-              <div className="sticky top-24 h-[calc(100vh-120px)]">
-                <CareerChatbot />
-              </div>
-            </div>
           </div>
         </div>
       </main>
+      
+      {/* Floating Chatbot */}
+      <FloatingChatbot />
     </div>
   );
 };

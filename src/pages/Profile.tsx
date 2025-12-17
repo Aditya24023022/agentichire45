@@ -16,6 +16,11 @@ interface Profile {
   phone: string | null;
   linkedin_url: string | null;
   portfolio_url: string | null;
+  education: string | null;
+  skills: string[] | null;
+  experience: string | null;
+  career_goals: string | null;
+  profile_completed: boolean | null;
 }
 
 interface Generation {
@@ -159,6 +164,11 @@ const Profile = () => {
           phone: profile.phone,
           linkedin_url: profile.linkedin_url,
           portfolio_url: profile.portfolio_url,
+          education: profile.education,
+          skills: profile.skills,
+          experience: profile.experience,
+          career_goals: profile.career_goals,
+          profile_completed: true,
         })
         .eq("id", profile.id);
 
@@ -260,6 +270,59 @@ const Profile = () => {
                   onChange={(e) => setProfile(prev => prev ? { ...prev, portfolio_url: e.target.value } : null)}
                   className="bg-background/50"
                 />
+              </div>
+            </div>
+
+            {/* Extended Profile Fields */}
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-primary" />
+                Career Information (Used for AI Personalization)
+              </h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="education">Education</Label>
+                  <Input
+                    id="education"
+                    placeholder="e.g., B.Tech Computer Science from IIT Delhi"
+                    value={profile?.education || ""}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, education: e.target.value } : null)}
+                    className="bg-background/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skills">Skills (comma-separated)</Label>
+                  <Input
+                    id="skills"
+                    placeholder="e.g., Python, React, Machine Learning, Leadership"
+                    value={profile?.skills?.join(", ") || ""}
+                    onChange={(e) => setProfile(prev => prev ? { 
+                      ...prev, 
+                      skills: e.target.value.split(",").map(s => s.trim()).filter(Boolean) 
+                    } : null)}
+                    className="bg-background/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="experience">Experience Summary</Label>
+                  <Input
+                    id="experience"
+                    placeholder="e.g., 3 years as Software Developer at TCS"
+                    value={profile?.experience || ""}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, experience: e.target.value } : null)}
+                    className="bg-background/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="goals">Career Goals</Label>
+                  <Input
+                    id="goals"
+                    placeholder="e.g., Transition to Senior Full-Stack Developer role"
+                    value={profile?.career_goals || ""}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, career_goals: e.target.value } : null)}
+                    className="bg-background/50"
+                  />
+                </div>
               </div>
             </div>
 

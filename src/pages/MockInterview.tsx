@@ -7,11 +7,11 @@ import { ResumeUpload } from "@/components/ResumeUpload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Video, Play, ArrowLeft, Mic, CheckCircle2, Download, FileText } from "lucide-react";
+import { Video, Play, ArrowLeft, Mic, CheckCircle2, Download, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import interviewerAvatar from "@/assets/interviewer-avatar.png";
 import AIInterviewer from "@/components/AIInterviewer";
-import { StreamingOutput } from "@/components/StreamingOutput";
+import InterviewReport from "@/components/InterviewReport";
 
 interface InterviewResults {
   score: number;
@@ -246,85 +246,58 @@ A: ${results?.responses[i] || 'No response'}
       )}
 
       {phase === "results" && results && (
-        <div className="max-w-3xl mx-auto space-y-6">
-          {/* Score Card */}
-          <div className="p-8 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 border border-primary/30 text-center">
-            <div className="w-28 h-28 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center border-4 border-primary/40">
-              <span className="text-4xl font-bold text-primary">{results.score}</span>
+        <div className="max-w-4xl mx-auto space-y-6">
+          {generatingReport ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Generating your detailed interview report...</p>
             </div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">Interview Complete!</h2>
-            <p className="text-muted-foreground">Duration: {formatDuration(results.duration)}</p>
-          </div>
-
-          {/* Detailed Report */}
-          <div className="p-6 rounded-xl bg-card border border-border">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">📋 Detailed Interview Report</h3>
-              {report && !generatingReport && (
-                <Button variant="outline" size="sm" onClick={downloadReport}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </Button>
-              )}
-            </div>
-            
-            <div className="min-h-[200px]">
-              <StreamingOutput
-                content={report}
-                isStreaming={generatingReport}
-                loading={generatingReport}
-                placeholder={
-                  <p className="text-muted-foreground">Generating detailed report...</p>
-                }
+          ) : (
+            <>
+              <InterviewReport
+                score={results.score}
+                feedback={results.feedback}
+                questions={results.questions}
+                responses={results.responses}
+                duration={results.duration}
+                interviewType="hr"
               />
-            </div>
-          </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
-              <p className="text-3xl font-bold text-primary">{results.questions.length}</p>
-              <p className="text-sm text-muted-foreground">Questions</p>
-            </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
-              <p className="text-3xl font-bold text-accent">{results.responses.length}</p>
-              <p className="text-sm text-muted-foreground">Responses</p>
-            </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
-              <p className="text-3xl font-bold text-green-500">{formatDuration(results.duration)}</p>
-              <p className="text-sm text-muted-foreground">Duration</p>
-            </div>
-          </div>
-
-          {/* Conversation Summary */}
-          {results.questions.length > 0 && (
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold text-foreground mb-4">📝 Conversation Transcript</h3>
-              <div className="space-y-4 max-h-64 overflow-y-auto">
-                {results.questions.map((q, i) => (
-                  <div key={i} className="space-y-2 p-3 rounded-lg bg-muted/20">
-                    <p className="text-sm text-primary font-medium">🎤 Priya: {q}</p>
-                    {results.responses[i] && (
-                      <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/30">
-                        👤 You: {results.responses[i]}
-                      </p>
-                    )}
+              {/* Conversation Transcript */}
+              {results.questions.length > 0 && (
+                <div className="p-6 rounded-xl bg-card border border-border">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">📝 Conversation Transcript</h3>
+                  <div className="space-y-4 max-h-64 overflow-y-auto">
+                    {results.questions.map((q, i) => (
+                      <div key={i} className="space-y-2 p-3 rounded-lg bg-muted/20">
+                        <p className="text-sm text-primary font-medium">🎤 Priya: {q}</p>
+                        {results.responses[i] && (
+                          <p className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/30">
+                            👤 You: {results.responses[i]}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Actions */}
-          <div className="flex gap-4">
-            <Button onClick={resetInterview} variant="outline" className="flex-1">
-              <ArrowLeft className="w-4 h-4" />
-              New Interview
-            </Button>
-            <Button onClick={() => navigate("/dashboard")} variant="hero" className="flex-1">
-              Back to Dashboard
-            </Button>
-          </div>
+              {/* Actions */}
+              <div className="flex gap-4">
+                <Button onClick={resetInterview} variant="outline" className="flex-1">
+                  <ArrowLeft className="w-4 h-4" />
+                  New Interview
+                </Button>
+                <Button onClick={downloadReport} variant="outline" className="flex-1">
+                  <Download className="w-4 h-4" />
+                  Download Report
+                </Button>
+                <Button onClick={() => navigate("/dashboard")} variant="hero" className="flex-1">
+                  Back to Dashboard
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </FeaturePageLayout>

@@ -7,9 +7,10 @@ import { ResumeUpload } from "@/components/ResumeUpload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Code, Loader2, Play, CheckCircle2, Star, ArrowLeft, Mic } from "lucide-react";
+import { Code, Loader2, Play, CheckCircle2, ArrowLeft, Mic, Download } from "lucide-react";
 import { toast } from "sonner";
 import AIInterviewer from "@/components/AIInterviewer";
+import InterviewReport from "@/components/InterviewReport";
 
 interface InterviewResults {
   score: number;
@@ -189,50 +190,27 @@ const TechnicalInterview = () => {
       )}
 
       {phase === "results" && results && (
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="p-8 rounded-2xl bg-gradient-to-br from-accent/20 via-accent/10 to-primary/10 border border-accent/30 text-center">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
-              <span className="text-4xl font-bold text-accent">{results.score}</span>
-            </div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">Technical Interview Complete!</h2>
-            <p className="text-muted-foreground">Duration: {formatDuration(results.duration)}</p>
-            
-            <div className="flex justify-center gap-1 mt-4">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
-                  className={`w-6 h-6 ${i < Math.floor(results.score / 20) ? 'text-yellow-500 fill-yellow-500' : 'text-muted'}`}
-                />
-              ))}
-            </div>
-          </div>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <InterviewReport
+            score={results.score}
+            feedback={results.feedback}
+            questions={results.questions}
+            responses={results.responses}
+            duration={results.duration}
+            interviewType="technical"
+          />
 
-          <div className="p-6 rounded-xl bg-card border border-border">
-            <h3 className="text-lg font-semibold text-foreground mb-3">Feedback from Arjun</h3>
-            <p className="text-muted-foreground leading-relaxed">{results.feedback}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
-              <p className="text-3xl font-bold text-accent">{results.questions.length}</p>
-              <p className="text-sm text-muted-foreground">Questions Asked</p>
-            </div>
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-center">
-              <p className="text-3xl font-bold text-primary">{results.responses.length}</p>
-              <p className="text-sm text-muted-foreground">Responses Given</p>
-            </div>
-          </div>
-
+          {/* Conversation Transcript */}
           {results.questions.length > 0 && (
             <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Conversation Summary</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">📝 Conversation Transcript</h3>
               <div className="space-y-4 max-h-64 overflow-y-auto">
                 {results.questions.map((q, i) => (
-                  <div key={i} className="space-y-2">
-                    <p className="text-sm text-accent font-medium">Arjun: {q}</p>
+                  <div key={i} className="space-y-2 p-3 rounded-lg bg-muted/20">
+                    <p className="text-sm text-accent font-medium">💻 Arjun: {q}</p>
                     {results.responses[i] && (
-                      <p className="text-sm text-muted-foreground pl-4 border-l-2 border-muted">
-                        You: {results.responses[i]}
+                      <p className="text-sm text-muted-foreground pl-4 border-l-2 border-accent/30">
+                        👤 You: {results.responses[i]}
                       </p>
                     )}
                   </div>
@@ -241,6 +219,7 @@ const TechnicalInterview = () => {
             </div>
           )}
 
+          {/* Actions */}
           <div className="flex gap-4">
             <Button onClick={resetInterview} variant="outline" className="flex-1">
               <ArrowLeft className="w-4 h-4" />
