@@ -23,6 +23,7 @@ import JobMatch from "./pages/JobMatch";
 import PortfolioDescriber from "./pages/PortfolioDescriber";
 import NetworkingMessages from "./pages/NetworkingMessages";
 import CareerAdvisor from "./pages/CareerAdvisor";
+import CareerCommunity from "./pages/CareerCommunity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/portfolio-describer" element={<PortfolioDescriber />} />
           <Route path="/networking-messages" element={<NetworkingMessages />} />
           <Route path="/career-advisor" element={<CareerAdvisor />} />
+          <Route path="/career-community" element={<CareerCommunity />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

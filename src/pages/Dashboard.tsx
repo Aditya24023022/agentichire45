@@ -159,6 +159,30 @@ const Dashboard = () => {
                 </Link>
               </div>
 
+              {/* Career Community - Featured */}
+              <Link
+                to="/career-community"
+                className="group relative p-5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-red-500/10 border border-amber-500/30 hover:border-amber-500/60 transition-all duration-300 hover:shadow-glow block mb-10"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-base font-display font-bold text-foreground">Career Community</h2>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/20 text-amber-500">NEW</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Book 1-on-1 sessions with industry experts • ₹400-550/session
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-amber-500 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
               {/* Core Tools */}
               <div className="mb-10">
                 <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
