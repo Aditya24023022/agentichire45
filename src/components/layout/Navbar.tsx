@@ -50,11 +50,11 @@ export const Navbar = () => {
                 <Link to="/resume-optimizer" className="text-muted-foreground hover:text-foreground transition-colors">
                   Resume
                 </Link>
-                <Link to="/email-writer" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Email Writer
-                </Link>
                 <Link to="/interview-prep" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Interview Prep
+                  Interview
+                </Link>
+                <Link to="/profile" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Profile
                 </Link>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
@@ -92,13 +92,13 @@ export const Navbar = () => {
                     Dashboard
                   </Link>
                   <Link to="/resume-optimizer" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Resume Optimizer
-                  </Link>
-                  <Link to="/email-writer" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Email Writer
+                    Resume
                   </Link>
                   <Link to="/interview-prep" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Interview Prep
+                    Interview
+                  </Link>
+                  <Link to="/profile" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
+                    Profile
                   </Link>
                   <button
                     onClick={handleLogout}
