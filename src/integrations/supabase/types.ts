@@ -96,33 +96,48 @@ export type Database = {
       }
       profiles: {
         Row: {
+          career_goals: string | null
           created_at: string | null
+          education: string | null
           email: string | null
+          experience: string | null
           full_name: string | null
           id: string
           linkedin_url: string | null
           phone: string | null
           portfolio_url: string | null
+          profile_completed: boolean | null
+          skills: string[] | null
           updated_at: string | null
         }
         Insert: {
+          career_goals?: string | null
           created_at?: string | null
+          education?: string | null
           email?: string | null
+          experience?: string | null
           full_name?: string | null
           id: string
           linkedin_url?: string | null
           phone?: string | null
           portfolio_url?: string | null
+          profile_completed?: boolean | null
+          skills?: string[] | null
           updated_at?: string | null
         }
         Update: {
+          career_goals?: string | null
           created_at?: string | null
+          education?: string | null
           email?: string | null
+          experience?: string | null
           full_name?: string | null
           id?: string
           linkedin_url?: string | null
           phone?: string | null
           portfolio_url?: string | null
+          profile_completed?: boolean | null
+          skills?: string[] | null
           updated_at?: string | null
         }
         Relationships: []
