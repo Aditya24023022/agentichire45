@@ -256,7 +256,7 @@ A: ${results?.responses[i] || 'No response'}
             <>
               <InterviewReport
                 score={results.score}
-                feedback={results.feedback}
+                feedback={report || results.feedback}
                 questions={results.questions}
                 responses={results.responses}
                 duration={results.duration}

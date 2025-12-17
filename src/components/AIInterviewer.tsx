@@ -34,37 +34,84 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
   const questionsRef = useRef<string[]>([]);
   const responsesRef = useRef<string[]>([]);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const completedRef = useRef(false);
+
+  const safeCompleteInterview = useCallback(() => {
+    if (completedRef.current) return;
+    if (!startTimeRef.current) return;
+
+    completedRef.current = true;
+
+    const duration = Math.max(1, Math.floor((Date.now() - startTimeRef.current) / 1000));
+    const answered = responsesRef.current.length;
+
+    // Simple scoring heuristic for demo (report is generated server-side)
+    const score = Math.min(95, 55 + Math.floor(answered * 6));
+
+    let feedback = "Thank you for completing the interview. ";
+    if (score >= 80) {
+      feedback += "Your communication was clear and confident. Share more quantified examples to stand out.";
+    } else if (score >= 65) {
+      feedback += "Good start. Add specific examples (STAR) and be more structured in answers.";
+    } else {
+      feedback += "Keep practicing. Use STAR, speak clearly, and include relevant examples.";
+    }
+
+    onInterviewComplete({
+      score,
+      feedback,
+      responses: responsesRef.current,
+      questions: questionsRef.current,
+      duration,
+    });
+  }, [onInterviewComplete]);
+
+  const pushTranscript = useCallback((speaker: 'agent' | 'user', text: string) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    setTranscript((prev) => [...prev, { speaker, text: t }]);
+  }, []);
 
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
       setIsActive(true);
       setIsConnecting(false);
+      completedRef.current = false;
       startTimeRef.current = Date.now();
+      questionsRef.current = [];
+      responsesRef.current = [];
+      setTranscript([]);
       toast.success('Interview started! Just speak naturally.');
     },
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
-      if (isActive) {
-        completeInterview();
-      }
       setIsActive(false);
+      safeCompleteInterview();
     },
     onMessage: (message: any) => {
       console.log('Message received:', message);
-      
-      // Handle user transcription
-      if (message.user_transcript) {
-        const userText = message.user_transcript;
-        responsesRef.current.push(userText);
-        setTranscript(prev => [...prev, { speaker: 'user', text: userText }]);
+
+      // Support multiple event shapes (SDK events + our observed payload shape)
+      const maybeUserText =
+        (typeof message?.user_transcript === 'string' && message.user_transcript) ||
+        (typeof message?.user_transcription_event?.user_transcript === 'string' && message.user_transcription_event.user_transcript) ||
+        (typeof message?.user_transcript_event?.user_transcript === 'string' && message.user_transcript_event.user_transcript) ||
+        ((message?.role === 'user' || message?.source === 'user') && typeof message?.message === 'string' ? message.message : undefined);
+
+      const maybeAgentText =
+        (typeof message?.agent_response === 'string' && message.agent_response) ||
+        (typeof message?.agent_response_event?.agent_response === 'string' && message.agent_response_event.agent_response) ||
+        ((message?.role === 'agent' || message?.role === 'ai' || message?.source === 'ai') && typeof message?.message === 'string' ? message.message : undefined);
+
+      if (maybeUserText) {
+        responsesRef.current.push(maybeUserText.trim());
+        pushTranscript('user', maybeUserText);
       }
-      
-      // Handle agent response
-      if (message.agent_response) {
-        const agentText = message.agent_response;
-        questionsRef.current.push(agentText);
-        setTranscript(prev => [...prev, { speaker: 'agent', text: agentText }]);
+
+      if (maybeAgentText) {
+        questionsRef.current.push(maybeAgentText.trim());
+        pushTranscript('agent', maybeAgentText);
       }
     },
     onError: (error) => {
@@ -80,50 +127,28 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [transcript]);
 
-  const completeInterview = () => {
-    const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
-    const score = Math.min(95, 60 + Math.floor(responsesRef.current.length * 5));
-    
-    let feedback = "Thank you for completing the interview. ";
-    if (score >= 80) {
-      feedback += "Your communication was clear and confident. You provided thoughtful responses with good examples. Keep practicing to maintain this level!";
-    } else if (score >= 65) {
-      feedback += "You showed solid communication skills. Consider providing more specific examples in your answers and work on being more concise.";
-    } else {
-      feedback += "You showed potential in this interview. Focus on structuring your answers better and practice speaking more confidently.";
-    }
-
-    onInterviewComplete({
-      score,
-      feedback,
-      responses: responsesRef.current,
-      questions: questionsRef.current,
-      duration
-    });
-  };
-
   const startInterview = useCallback(async () => {
     setIsConnecting(true);
-    
+
     try {
-      // Request microphone permission
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Get signed URL from edge function
+      // Request microphone permission (no camera)
+      await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+      // Get signed URL from backend function
       const { data, error } = await supabase.functions.invoke('elevenlabs-conversation', {
-        body: { 
+        body: {
           action: 'get-token',
           jobDescription,
           resumeContent,
-          interviewType
-        }
+          interviewType,
+        },
       });
 
       if (error) {
-        console.error('Edge function error:', error);
+        console.error('Backend function error:', error);
         throw new Error('Failed to connect to interview agent');
       }
-      
+
       if (!data?.signed_url) {
         console.error('No signed URL received:', data);
         throw new Error('Failed to get interview session');
@@ -133,31 +158,34 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
       await conversation.startSession({
         signedUrl: data.signed_url,
       });
-      
     } catch (error: any) {
       console.error('Failed to start interview:', error);
       toast.error(error.message || 'Failed to start interview. Please check your microphone permissions.');
       setIsConnecting(false);
     }
-  }, [conversation, jobDescription, resumeContent]);
+  }, [conversation, jobDescription, resumeContent, interviewType]);
 
   const endInterview = useCallback(async () => {
-    await conversation.endSession();
-  }, [conversation]);
+    try {
+      await conversation.endSession();
+    } finally {
+      safeCompleteInterview();
+    }
+  }, [conversation, safeCompleteInterview]);
 
   // Auto-start the interview when component mounts
   useEffect(() => {
     const timer = setTimeout(() => {
       startInterview();
-    }, 1500);
-    
+    }, 1200);
+
     return () => {
       clearTimeout(timer);
       if (conversation.status === 'connected') {
         conversation.endSession();
       }
     };
-  }, []);
+  }, [startInterview, conversation]);
 
   return (
     <div className="flex flex-col items-center min-h-[70vh] bg-gradient-to-b from-background to-muted/20 rounded-2xl p-6">
