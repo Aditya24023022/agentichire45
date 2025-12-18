@@ -150,10 +150,10 @@ Remember: Be direct but friendly, like a senior Indian tech lead. Variation seed
         ? hrOpenings[Math.floor(Math.random() * hrOpenings.length)]
         : techOpenings[Math.floor(Math.random() * techOpenings.length)];
       
-      // Use voices that sound more professional
-      // Sarah (EXAVITQu4vr4xnSDxMaL) - Professional female voice for HR
-      // Brian (nPczCjzI2devNBz1zQrb) - Professional male voice for Technical
-      const voiceId = isHR ? 'EXAVITQu4vr4xnSDxMaL' : 'nPczCjzI2devNBz1zQrb';
+      // Using voices that work well with Indian English persona
+      // Jessica (female) and Eric (male) have natural tones that fit professional Indian personas
+      // The persona is defined through the prompt to speak as Indian HR/Tech professionals
+      const voiceId = isHR ? 'cgSgspJ2msm6clMCkdW9' : 'cjVigY5qzO86Huf0OWal';
 
       // Create agent with correct format
       const createAgentResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
