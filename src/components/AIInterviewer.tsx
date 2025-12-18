@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Volume2 } from 'lucide-react';
+import { Loader2, Volume2, Mic, MicOff, AlertCircle } from 'lucide-react';
 import interviewerAvatar from '@/assets/interviewer-avatar.png';
 
 interface AIInterviewerProps {
@@ -27,34 +27,53 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
   const isHR = interviewType === 'hr';
   const interviewerName = isHR ? 'Priya' : 'Arjun';
   const interviewerTitle = isHR ? 'Senior HR Professional' : 'Technical Lead';
+  
   const [isConnecting, setIsConnecting] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<{ speaker: 'agent' | 'user'; text: string }[]>([]);
+  
   const startTimeRef = useRef<number>(0);
   const questionsRef = useRef<string[]>([]);
   const responsesRef = useRef<string[]>([]);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const completedRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   const safeCompleteInterview = useCallback(() => {
     if (completedRef.current) return;
-    if (!startTimeRef.current) return;
+    if (!startTimeRef.current) {
+      // No interview was started
+      return;
+    }
 
     completedRef.current = true;
 
     const duration = Math.max(1, Math.floor((Date.now() - startTimeRef.current) / 1000));
     const answered = responsesRef.current.length;
+    const totalQuestions = questionsRef.current.length;
 
-    // Simple scoring heuristic for demo (report is generated server-side)
-    const score = Math.min(95, 55 + Math.floor(answered * 6));
+    // Calculate score based on responses
+    let baseScore = 50;
+    if (answered > 0) {
+      // Add points for each answer
+      baseScore += answered * 7;
+      
+      // Add points for response quality (length as proxy)
+      const avgLength = responsesRef.current.reduce((acc, r) => acc + (r?.length || 0), 0) / answered;
+      if (avgLength > 100) baseScore += 10;
+      if (avgLength > 200) baseScore += 5;
+    }
+    
+    const score = Math.min(95, Math.max(35, baseScore));
 
     let feedback = "Thank you for completing the interview. ";
     if (score >= 80) {
-      feedback += "Your communication was clear and confident. Share more quantified examples to stand out.";
+      feedback += "Excellent performance! Your responses were detailed and well-structured.";
     } else if (score >= 65) {
-      feedback += "Good start. Add specific examples (STAR) and be more structured in answers.";
+      feedback += "Good effort! Consider providing more specific examples in your answers.";
     } else {
-      feedback += "Keep practicing. Use STAR, speak clearly, and include relevant examples.";
+      feedback += "Keep practicing! Focus on using the STAR method and providing concrete examples.";
     }
 
     onInterviewComplete({
@@ -69,7 +88,14 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
   const pushTranscript = useCallback((speaker: 'agent' | 'user', text: string) => {
     const t = (text || '').trim();
     if (!t) return;
-    setTranscript((prev) => [...prev, { speaker, text: t }]);
+    setTranscript((prev) => {
+      // Avoid duplicates
+      const lastEntry = prev[prev.length - 1];
+      if (lastEntry && lastEntry.speaker === speaker && lastEntry.text === t) {
+        return prev;
+      }
+      return [...prev, { speaker, text: t }];
+    });
   }, []);
 
   const conversation = useConversation({
@@ -77,46 +103,73 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
       console.log('Connected to ElevenLabs agent');
       setIsActive(true);
       setIsConnecting(false);
+      setConnectionError(null);
       completedRef.current = false;
       startTimeRef.current = Date.now();
       questionsRef.current = [];
       responsesRef.current = [];
       setTranscript([]);
-      toast.success('Interview started! Just speak naturally.');
+      toast.success('Interview started! Speak naturally to respond.');
     },
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
       setIsActive(false);
-      safeCompleteInterview();
+      // Only complete if we actually had an interview
+      if (startTimeRef.current && !completedRef.current) {
+        safeCompleteInterview();
+      }
     },
     onMessage: (message: any) => {
-      console.log('Message received:', message);
+      console.log('ElevenLabs message:', JSON.stringify(message, null, 2));
 
-      // Support multiple event shapes (SDK events + our observed payload shape)
-      const maybeUserText =
-        (typeof message?.user_transcript === 'string' && message.user_transcript) ||
-        (typeof message?.user_transcription_event?.user_transcript === 'string' && message.user_transcription_event.user_transcript) ||
-        (typeof message?.user_transcript_event?.user_transcript === 'string' && message.user_transcript_event.user_transcript) ||
-        ((message?.role === 'user' || message?.source === 'user') && typeof message?.message === 'string' ? message.message : undefined);
-
-      const maybeAgentText =
-        (typeof message?.agent_response === 'string' && message.agent_response) ||
-        (typeof message?.agent_response_event?.agent_response === 'string' && message.agent_response_event.agent_response) ||
-        ((message?.role === 'agent' || message?.role === 'ai' || message?.source === 'ai') && typeof message?.message === 'string' ? message.message : undefined);
-
-      if (maybeUserText) {
-        responsesRef.current.push(maybeUserText.trim());
-        pushTranscript('user', maybeUserText);
+      // Handle various message formats from ElevenLabs SDK
+      // User transcript events
+      if (message?.type === 'user_transcript' || message?.user_transcript) {
+        const userText = message?.user_transcript || 
+                        message?.user_transcription_event?.user_transcript ||
+                        message?.text;
+        if (userText && typeof userText === 'string') {
+          responsesRef.current.push(userText.trim());
+          pushTranscript('user', userText);
+        }
+      }
+      
+      // Agent response events
+      if (message?.type === 'agent_response' || message?.agent_response) {
+        const agentText = message?.agent_response ||
+                         message?.agent_response_event?.agent_response ||
+                         message?.text;
+        if (agentText && typeof agentText === 'string') {
+          questionsRef.current.push(agentText.trim());
+          pushTranscript('agent', agentText);
+        }
       }
 
-      if (maybeAgentText) {
-        questionsRef.current.push(maybeAgentText.trim());
-        pushTranscript('agent', maybeAgentText);
+      // Handle role-based messages
+      if (message?.role === 'user' && message?.message) {
+        responsesRef.current.push(message.message.trim());
+        pushTranscript('user', message.message);
+      }
+      if ((message?.role === 'agent' || message?.role === 'assistant') && message?.message) {
+        questionsRef.current.push(message.message.trim());
+        pushTranscript('agent', message.message);
+      }
+
+      // Handle transcript type messages
+      if (message?.type === 'transcript' && message?.text) {
+        const speaker = message?.source === 'user' ? 'user' : 'agent';
+        if (speaker === 'user') {
+          responsesRef.current.push(message.text.trim());
+        } else {
+          questionsRef.current.push(message.text.trim());
+        }
+        pushTranscript(speaker, message.text);
       }
     },
     onError: (error) => {
       console.error('ElevenLabs error:', error);
-      toast.error('Connection error. Please try again.');
+      setConnectionError('Connection error occurred');
+      toast.error('Interview connection issue. Please try again.');
       setIsConnecting(false);
       setIsActive(false);
     },
@@ -128,13 +181,19 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
   }, [transcript]);
 
   const startInterview = useCallback(async () => {
+    if (isConnecting || isActive) return;
+    
     setIsConnecting(true);
+    setConnectionError(null);
 
     try {
       // Request microphone permission (no camera)
+      console.log('Requesting microphone access...');
       await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      console.log('Microphone access granted');
 
       // Get signed URL from backend function
+      console.log('Fetching signed URL from backend...');
       const { data, error } = await supabase.functions.invoke('elevenlabs-conversation', {
         body: {
           action: 'get-token',
@@ -146,46 +205,60 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
 
       if (error) {
         console.error('Backend function error:', error);
-        throw new Error('Failed to connect to interview agent');
+        throw new Error('Failed to connect to interview service');
       }
 
+      console.log('Backend response:', data);
+
       if (!data?.signed_url) {
-        console.error('No signed URL received:', data);
-        throw new Error('Failed to get interview session');
+        console.error('No signed URL in response:', data);
+        throw new Error('Interview service unavailable');
       }
 
       // Start the conversation with WebSocket
+      console.log('Starting WebSocket conversation...');
       await conversation.startSession({
         signedUrl: data.signed_url,
       });
+      
     } catch (error: any) {
       console.error('Failed to start interview:', error);
-      toast.error(error.message || 'Failed to start interview. Please check your microphone permissions.');
+      setConnectionError(error.message || 'Failed to start interview');
+      
+      if (error.name === 'NotAllowedError' || error.message?.includes('microphone')) {
+        toast.error('Please allow microphone access to start the interview.');
+      } else {
+        toast.error(error.message || 'Failed to start interview. Please try again.');
+      }
       setIsConnecting(false);
     }
-  }, [conversation, jobDescription, resumeContent, interviewType]);
+  }, [conversation, jobDescription, resumeContent, interviewType, isConnecting, isActive]);
 
   const endInterview = useCallback(async () => {
+    console.log('Ending interview...');
     try {
       await conversation.endSession();
-    } finally {
-      safeCompleteInterview();
+    } catch (e) {
+      console.error('Error ending session:', e);
     }
+    safeCompleteInterview();
   }, [conversation, safeCompleteInterview]);
 
   // Auto-start the interview when component mounts
   useEffect(() => {
     const timer = setTimeout(() => {
-      startInterview();
-    }, 1200);
+      if (!isConnecting && !isActive && !completedRef.current) {
+        startInterview();
+      }
+    }, 1500);
 
     return () => {
       clearTimeout(timer);
       if (conversation.status === 'connected') {
-        conversation.endSession();
+        conversation.endSession().catch(console.error);
       }
     };
-  }, [startInterview, conversation]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center min-h-[70vh] bg-gradient-to-b from-background to-muted/20 rounded-2xl p-6">
@@ -194,7 +267,7 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
         <div 
           className={`w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 transition-all duration-300 ${
             conversation.isSpeaking 
-              ? 'border-primary shadow-xl shadow-primary/40' 
+              ? 'border-primary shadow-xl shadow-primary/40 animate-pulse' 
               : isActive 
                 ? 'border-green-500 shadow-lg shadow-green-500/20' 
                 : 'border-muted'
@@ -217,7 +290,7 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
           )}
         </div>
         
-        {/* Speaking Indicator - Sound waves animation */}
+        {/* Speaking Indicator */}
         {conversation.isSpeaking && (
           <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 flex items-end gap-0.5 h-6 px-3 py-1 bg-primary/90 rounded-full">
             {[...Array(7)].map((_, i) => (
@@ -238,7 +311,7 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
         {isActive && !conversation.isSpeaking && (
           <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
             <div className="flex items-center gap-2 bg-green-500 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-lg">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              <Mic className="w-4 h-4 animate-pulse" />
               Listening...
             </div>
           </div>
@@ -253,7 +326,14 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
         {isConnecting && (
           <div className="flex items-center justify-center gap-2 mt-4 text-primary">
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Connecting to interview...</span>
+            <span>Connecting to {interviewerName}...</span>
+          </div>
+        )}
+        
+        {connectionError && (
+          <div className="flex items-center justify-center gap-2 mt-4 text-destructive">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-sm">{connectionError}</span>
           </div>
         )}
         
@@ -270,7 +350,7 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
       {/* Instructions */}
       {isActive && (
         <p className="text-center text-muted-foreground text-sm mb-4 max-w-md">
-          Just speak naturally when responding. No buttons needed - I'm listening automatically.
+          Just speak naturally when responding. {interviewerName} is listening automatically - no buttons needed!
         </p>
       )}
 
@@ -318,20 +398,29 @@ const AIInterviewer: React.FC<AIInterviewerProps> = ({
           onClick={endInterview}
           className="px-6 py-2.5 bg-destructive/90 text-destructive-foreground rounded-lg hover:bg-destructive transition-colors font-medium text-sm"
         >
-          End Interview
+          End Interview & Get Report
         </button>
       )}
 
-      {/* Initial Instructions */}
+      {/* Initial Instructions / Retry */}
       {!isActive && !isConnecting && (
-        <div className="text-center text-muted-foreground mt-4 space-y-2">
-          <p className="text-sm">Please allow microphone access when prompted.</p>
-          <p className="text-sm">The interview will begin automatically.</p>
+        <div className="text-center text-muted-foreground mt-4 space-y-3">
+          {connectionError ? (
+            <>
+              <p className="text-sm">Having trouble connecting?</p>
+              <p className="text-xs">Make sure your microphone is working and try again.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm">Please allow microphone access when prompted.</p>
+              <p className="text-sm">The interview will begin automatically.</p>
+            </>
+          )}
           <button
             onClick={startInterview}
             className="mt-4 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
           >
-            Start Interview
+            {connectionError ? 'Retry Interview' : 'Start Interview'}
           </button>
         </div>
       )}
