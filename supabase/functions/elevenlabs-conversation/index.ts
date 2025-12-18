@@ -21,90 +21,141 @@ serve(async (req) => {
     if (action === 'get-token') {
       console.log(`Creating ElevenLabs ${interviewType} interview agent...`);
       
+      // Generate unique session ID for question variation
+      const sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+      const questionVariation = Math.floor(Math.random() * 100);
+      
       // Clean and truncate the job description and resume to avoid API limits
       const cleanJobDesc = (jobDescription || '')
         .replace(/!\[.*?\]\(.*?\)/g, '')
         .replace(/\s+/g, ' ')
         .trim()
-        .substring(0, 1200);
+        .substring(0, 1500);
       const cleanResume = (resumeContent || '')
         .replace(/\s+/g, ' ')
         .trim()
-        .substring(0, 1200);
+        .substring(0, 1500);
 
       const isHR = interviewType === 'hr';
 
-      const hrPrompt = `You are Priya, an HR Professional conducting a screening interview.
+      // Random question focus areas for variety
+      const hrFocusAreas = [
+        'motivation and career aspirations',
+        'teamwork and collaboration experiences',
+        'handling challenges and setbacks',
+        'leadership and initiative examples',
+        'communication and stakeholder management',
+        'adaptability and learning new things',
+        'conflict resolution and feedback handling'
+      ];
+      
+      const techFocusAreas = [
+        'system architecture and design patterns',
+        'debugging and troubleshooting approaches',
+        'code quality and best practices',
+        'performance optimization techniques',
+        'testing strategies and methodologies',
+        'security considerations',
+        'scalability and reliability'
+      ];
+      
+      // Shuffle and pick random focus areas for this session
+      const shuffledHR = hrFocusAreas.sort(() => Math.random() - 0.5).slice(0, 4);
+      const shuffledTech = techFocusAreas.sort(() => Math.random() - 0.5).slice(0, 4);
 
-GOAL:
-- Ask 7 HR questions that are PERSONALIZED to the JOB + CANDIDATE.
-- Every interview session must feel different (vary wording + angle).
+      const hrPrompt = `You are Priya, an experienced Indian HR Professional conducting a screening interview.
+Session ID: ${sessionId} (use this to ensure unique questions)
 
-STRICT RULES:
-- Ask ONE question at a time, then WAIT.
-- Keep your own messages short (1-2 sentences).
-- NO technical questions.
-- Questions must reference the job description OR something from the resume.
-- Avoid generic templates like "Tell me about yourself" unless you tie it to their background.
+CRITICAL RULES:
+- Ask ONE question at a time, then WAIT for the candidate to respond
+- Keep your responses SHORT (1-2 sentences max)
+- NO technical questions - this is HR screening only
+- EVERY question must reference something specific from the JOB or RESUME below
+- Ask EXACTLY 7 questions total (different each session)
 
-QUESTION AREAS (pick 7, all different):
-- Motivation for this role/company
-- Relevant experience verification (from resume)
-- Behavioral (STAR)
-- Conflict/feedback handling
-- Ownership/initiative
-- Collaboration/culture fit
-- Career goals + why now
+FOCUS AREAS FOR THIS SESSION (randomized): ${shuffledHR.join(', ')}
 
-After the 7th answer:
-- Thank them.
-- Give 2 strengths + 1 improvement area.
-- End with: "You can now press End Interview to view your report." 
+QUESTION TYPES TO INCLUDE:
+- "Tell me about a time when..." (behavioral/STAR)
+- "Why are you interested in this role/company?"
+- "How would you handle..." (situational)
+- "I noticed on your resume you worked on X, tell me more..."
+- "What kind of work environment do you prefer?"
+- "Where do you see yourself in 3-5 years?"
 
-JOB DESCRIPTION: ${cleanJobDesc}
-CANDIDATE RESUME: ${cleanResume}`;
+AFTER 7TH ANSWER:
+- Thank the candidate warmly
+- Give 2 specific strengths you observed
+- Give 1 area they could improve
+- Say: "You can now click End Interview to see your detailed report."
 
-      const technicalPrompt = `You are Arjun, a Senior Technical Lead conducting a technical interview.
+JOB DESCRIPTION:
+${cleanJobDesc}
 
-GOAL:
-- Ask 7 TECHNICAL questions that are PERSONALIZED to the JOB + CANDIDATE.
-- Every interview session must feel different (vary wording + topic selection).
+CANDIDATE RESUME:
+${cleanResume}
 
-STRICT RULES:
-- Ask ONE question at a time, then WAIT.
-- Keep your own messages short (1-2 sentences).
-- Questions MUST be based on tech stack/requirements in the job description and skills/projects in the resume.
-- If the resume/JD mentions AWS/Lambda/S3, ask AWS-specific questions; if React, ask React; etc.
-- Probe deeper when answers are vague.
+Remember: Be warm, professional, and speak naturally like a real Indian HR professional. Variation seed: ${questionVariation}`;
 
-QUESTION AREAS (pick 7, all different):
-- Deep dive on a resume project/experience
-- Core concepts in the stack
-- Practical debugging/troubleshooting scenario
-- System design scenario matched to role seniority
-- Performance/scaling tradeoffs
-- Testing/quality/security best practices
-- Role-specific problem-solving
+      const technicalPrompt = `You are Arjun, a Senior Technical Lead from India conducting a technical interview.
+Session ID: ${sessionId} (use this to ensure unique questions)
 
-After the 7th answer:
-- Thank them.
-- Provide 2 technical strengths + 1 gap.
-- End with: "You can now press End Interview to view your report." 
+CRITICAL RULES:
+- Ask ONE question at a time, then WAIT for response
+- Keep your questions CLEAR and CONCISE
+- Questions MUST be specific to tech stack mentioned in JD and resume
+- Probe deeper when answers are vague or incorrect
+- Ask EXACTLY 7 questions total (different each session)
 
-JOB REQUIREMENTS: ${cleanJobDesc}
-CANDIDATE RESUME: ${cleanResume}`;
+FOCUS AREAS FOR THIS SESSION (randomized): ${shuffledTech.join(', ')}
+
+QUESTION TYPES TO INCLUDE:
+- Deep dive on a specific project from resume
+- Core concept questions (explain how X works)
+- Practical scenario (how would you implement/debug X)
+- System design question appropriate to seniority
+- Best practices (testing, security, code review)
+- Problem-solving approach question
+
+AFTER 7TH ANSWER:
+- Thank the candidate
+- Mention 2 technical strengths demonstrated
+- Mention 1 technical gap or area to improve
+- Say: "You can now click End Interview to see your detailed technical assessment."
+
+JOB REQUIREMENTS:
+${cleanJobDesc}
+
+CANDIDATE RESUME:
+${cleanResume}
+
+Remember: Be direct but friendly, like a senior Indian tech lead. Variation seed: ${questionVariation}`;
 
       const systemPrompt = isHR ? hrPrompt : technicalPrompt;
       
-      const hrFirstMessage = "Hello! I'm Priya, your HR interviewer today. Just speak naturally - no buttons needed. Let's begin. Tell me about yourself.";
-      const technicalFirstMessage = "Hi there! I'm Arjun, and I'll be conducting your technical interview today. Just speak naturally. Let's start - can you walk me through your technical background?";
+      // Different opening questions for variety
+      const hrOpenings = [
+        "Namaste! I'm Priya, and I'll be conducting your HR interview today. Let's start - tell me about your professional journey so far.",
+        "Hello! I'm Priya from HR. Thanks for joining today. Can you walk me through your background and what brought you here?",
+        "Hi there! I'm Priya, your interviewer. Let's begin - what excites you most about this opportunity?"
+      ];
       
-      const firstMessage = isHR ? hrFirstMessage : technicalFirstMessage;
+      const techOpenings = [
+        "Hi! I'm Arjun, the technical interviewer. Let's dive in - can you tell me about a challenging technical project you've worked on?",
+        "Hello! I'm Arjun. Let's start with your technical background - what technologies are you most proficient in?",
+        "Hi there! I'm Arjun from the engineering team. Tell me about a system you designed or significantly contributed to."
+      ];
       
-      // Use different voices for HR vs Technical
-      const voiceId = isHR ? 'EXAVITQu4vr4xnSDxMaL' : 'N2lVS1w4EtoT3dr4eOWO'; // Sarah for HR, Callum for Technical
+      const firstMessage = isHR 
+        ? hrOpenings[Math.floor(Math.random() * hrOpenings.length)]
+        : techOpenings[Math.floor(Math.random() * techOpenings.length)];
+      
+      // Use voices that sound more professional
+      // Sarah (EXAVITQu4vr4xnSDxMaL) - Professional female voice for HR
+      // Brian (nPczCjzI2devNBz1zQrb) - Professional male voice for Technical
+      const voiceId = isHR ? 'EXAVITQu4vr4xnSDxMaL' : 'nPczCjzI2devNBz1zQrb';
 
-      // Create agent with correct format for English agents
+      // Create agent with correct format
       const createAgentResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
         method: 'POST',
         headers: {
@@ -112,13 +163,13 @@ CANDIDATE RESUME: ${cleanResume}`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: `Interview-${Date.now()}`,
+          name: `Interview-${sessionId}`,
           conversation_config: {
             agent: {
               prompt: {
                 prompt: systemPrompt,
-                llm: 'gpt-4o-mini', // Using OpenAI model which is well supported
-                temperature: 0.7,
+                llm: 'gpt-4o-mini',
+                temperature: 0.8, // Higher temperature for more variety
               },
               first_message: firstMessage,
               language: 'en',
