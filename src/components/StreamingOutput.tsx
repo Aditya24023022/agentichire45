@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import { Loader2, CheckCircle2, Lightbulb, Target, Award, TrendingUp, Star, Zap } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface StreamingOutputProps {
   content: string;
@@ -28,62 +28,44 @@ export const StreamingOutput = ({ content, isStreaming, loading, placeholder }: 
     return <>{placeholder}</>;
   }
 
-  // Clean content - remove # headers and format properly
-  const cleanContent = content
-    .replace(/^#{1,6}\s+/gm, '') // Remove markdown headers
-    .replace(/\*\*([^*]+)\*\*/g, '**$1**'); // Keep bold
-
   return (
     <div className="prose prose-invert prose-sm max-w-none">
       <ReactMarkdown
         components={{
           h1: ({ children }) => (
-            <div className="flex items-center gap-3 mt-6 mb-4 pb-3 border-b border-primary/30 first:mt-0">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5">
-                <Award className="w-5 h-5 text-primary" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
-                {children}
-              </span>
-            </div>
+            <h1 className="text-2xl font-bold text-foreground mt-6 mb-3 pb-2 border-b border-border first:mt-0">
+              {children}
+            </h1>
           ),
           h2: ({ children }) => (
-            <div className="flex items-center gap-2.5 mt-5 mb-3">
-              <div className="p-1.5 rounded-md bg-primary/10">
-                <Target className="w-4 h-4 text-primary" />
-              </div>
-              <span className="text-lg font-semibold text-foreground">
-                {children}
-              </span>
-            </div>
+            <h2 className="text-xl font-semibold text-foreground mt-5 mb-2 flex items-center gap-2">
+              {children}
+            </h2>
           ),
           h3: ({ children }) => (
-            <div className="flex items-center gap-2 mt-4 mb-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span className="text-base font-medium text-foreground">
-                {children}
-              </span>
-            </div>
+            <h3 className="text-lg font-medium text-foreground mt-4 mb-2">
+              {children}
+            </h3>
           ),
           p: ({ children }) => (
-            <p className="text-foreground/90 leading-relaxed mb-3 text-sm">
+            <p className="text-foreground/90 leading-relaxed mb-3">
               {children}
             </p>
           ),
           ul: ({ children }) => (
-            <ul className="space-y-2 mb-4 ml-0">
+            <ul className="space-y-1.5 mb-4 ml-1">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="space-y-2 mb-4 ml-0 counter-reset-item">
+            <ol className="space-y-1.5 mb-4 ml-1 list-decimal list-inside">
               {children}
             </ol>
           ),
           li: ({ children }) => (
-            <li className="flex items-start gap-3 text-foreground/90 bg-gradient-to-r from-muted/50 to-transparent p-2.5 rounded-lg border-l-2 border-primary/40 hover:border-primary/70 transition-colors">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-              <span className="text-sm leading-relaxed">{children}</span>
+            <li className="text-foreground/90 flex items-start gap-2">
+              <span className="text-primary mt-1.5 flex-shrink-0">•</span>
+              <span>{children}</span>
             </li>
           ),
           strong: ({ children }) => (
@@ -91,86 +73,62 @@ export const StreamingOutput = ({ content, isStreaming, loading, placeholder }: 
               {children}
             </strong>
           ),
-          em: ({ children }) => (
-            <em className="text-cyan-400 not-italic font-medium">
-              {children}
-            </em>
-          ),
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-amber-400/50 pl-4 py-3 my-4 bg-gradient-to-r from-amber-500/10 to-transparent rounded-r-lg">
-              <div className="flex items-start gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                <div className="text-foreground/90 text-sm">{children}</div>
-              </div>
+            <blockquote className="border-l-4 border-primary/50 pl-4 py-2 my-4 bg-primary/5 rounded-r-lg italic text-foreground/80">
+              {children}
             </blockquote>
           ),
           code: ({ children, className }) => {
             const isInline = !className;
             if (isInline) {
               return (
-                <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono border border-primary/20">
+                <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-primary">
                   {children}
                 </code>
               );
             }
             return (
-              <code className="block bg-muted/80 p-4 rounded-lg text-sm font-mono overflow-x-auto my-4 border border-border">
+              <code className="block bg-muted p-4 rounded-lg text-sm font-mono overflow-x-auto my-4">
                 {children}
               </code>
             );
           },
           pre: ({ children }) => (
-            <pre className="bg-muted/80 p-4 rounded-lg overflow-x-auto my-4 border border-border">
+            <pre className="bg-muted p-4 rounded-lg overflow-x-auto my-4">
               {children}
             </pre>
           ),
-          hr: () => (
-            <div className="my-6 flex items-center gap-2">
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-              <Star className="w-3 h-3 text-primary/50" />
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-            </div>
-          ),
+          hr: () => <hr className="border-border my-6" />,
           table: ({ children }) => (
-            <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-lg">
+            <div className="overflow-x-auto my-4 rounded-lg border border-border">
               <table className="w-full text-sm">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-gradient-to-r from-primary/10 to-cyan-500/10 border-b border-border">
+            <thead className="bg-muted/50 border-b border-border">
               {children}
             </thead>
           ),
           th: ({ children }) => (
-            <th className="px-4 py-3 text-left font-semibold text-primary">
+            <th className="px-4 py-2 text-left font-semibold text-foreground">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-4 py-3 border-t border-border/50 text-foreground/90">
+            <td className="px-4 py-2 border-t border-border/50 text-foreground/90">
               {children}
             </td>
           ),
-          a: ({ children, href }) => (
-            <a 
-              href={href} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary/80 underline underline-offset-2 transition-colors"
-            >
-              {children}
-            </a>
-          ),
         }}
       >
-        {cleanContent}
+        {content}
       </ReactMarkdown>
       
       {isStreaming && (
         <span className="inline-flex items-center gap-1 ml-1">
-          <span className="w-2 h-4 bg-primary animate-pulse rounded-sm" />
+          <span className="w-2 h-4 bg-primary animate-pulse" />
         </span>
       )}
     </div>

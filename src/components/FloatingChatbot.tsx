@@ -5,7 +5,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, Bot, User, Sparkles, X, Minimize2, Maximize2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ChatMessageStyled } from "./ChatMessageStyled";
 
 interface Message {
   role: "user" | "assistant";
@@ -16,11 +15,11 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/career-couns
 
 // Keywords that indicate non-career topics
 const NON_CAREER_KEYWORDS = [
-  'recipe', 'cook', 'food', 'weather', 'movie', 'game', 'sport score', 'music lyrics', 
-  'dating advice', 'relationship drama', 'politics', 'religion', 'joke tell me',
-  'travel booking', 'vacation plan', 'hotel room', 'restaurant review', 
-  'weight loss', 'diet plan', 'workout routine',
-  'crypto trading', 'bitcoin price', 'stock tips', 'gambling', 'lottery'
+  'recipe', 'cook', 'food', 'weather', 'movie', 'game', 'sport', 'music', 
+  'dating', 'relationship', 'politics', 'religion', 'joke', 'story',
+  'travel', 'vacation', 'hotel', 'restaurant', 'health', 'medicine',
+  'weight loss', 'diet', 'exercise', 'workout', 'fitness routine',
+  'crypto', 'bitcoin', 'stock tips', 'gambling', 'lottery'
 ];
 
 const FloatingChatbot = () => {
@@ -182,7 +181,7 @@ const FloatingChatbot = () => {
       className={`fixed z-50 transition-all duration-300 ${
         isMinimized 
           ? 'bottom-6 right-6 w-80' 
-          : 'bottom-6 right-6 w-96 h-[520px]'
+          : 'bottom-6 right-6 w-96 h-[500px]'
       }`}
     >
       <div className="flex flex-col h-full bg-card border border-border rounded-2xl overflow-hidden shadow-2xl shadow-primary/10">
@@ -224,9 +223,9 @@ const FloatingChatbot = () => {
                     Hi! I'm your AI Career Counselor.
                   </p>
                   <div className="space-y-1.5 text-[11px] text-muted-foreground">
-                    <p className="bg-gradient-to-r from-emerald-500/10 to-transparent px-2 py-1.5 rounded-lg border-l-2 border-emerald-500/50">🎯 Career path suggestions</p>
-                    <p className="bg-gradient-to-r from-blue-500/10 to-transparent px-2 py-1.5 rounded-lg border-l-2 border-blue-500/50">📚 Learning roadmaps</p>
-                    <p className="bg-gradient-to-r from-amber-500/10 to-transparent px-2 py-1.5 rounded-lg border-l-2 border-amber-500/50">💡 Skill development</p>
+                    <p className="bg-muted/30 px-2 py-1.5 rounded-lg">🎯 Career path suggestions</p>
+                    <p className="bg-muted/30 px-2 py-1.5 rounded-lg">📚 Learning roadmaps</p>
+                    <p className="bg-muted/30 px-2 py-1.5 rounded-lg">💡 Skill development</p>
                   </div>
                   <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                     <p className="text-[10px] text-amber-500 flex items-center gap-1 justify-center">
@@ -243,25 +242,21 @@ const FloatingChatbot = () => {
                       className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       {msg.role === "assistant" && (
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                           <Bot className="w-3 h-3 text-primary" />
                         </div>
                       )}
                       <div
                         className={`max-w-[85%] rounded-xl px-3 py-2 ${
                           msg.role === "user"
-                            ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground"
-                            : "bg-gradient-to-br from-muted/60 to-muted/30 border border-border/50"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted/50 text-foreground"
                         }`}
                       >
-                        {msg.role === "assistant" ? (
-                          <ChatMessageStyled content={msg.content} isCompact={true} />
-                        ) : (
-                          <p className="text-xs">{msg.content}</p>
-                        )}
+                        <p className="text-xs whitespace-pre-wrap">{msg.content}</p>
                       </div>
                       {msg.role === "user" && (
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-accent/30 to-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
                           <User className="w-3 h-3 text-accent" />
                         </div>
                       )}
@@ -273,11 +268,7 @@ const FloatingChatbot = () => {
                         <Bot className="w-3 h-3 text-primary" />
                       </div>
                       <div className="bg-muted/50 rounded-xl px-3 py-2">
-                        <div className="flex gap-1">
-                          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
+                        <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
                       </div>
                     </div>
                   )}

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2, Bot, User, Sparkles, TrendingUp, Target, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { ChatMessageStyled } from "./ChatMessageStyled";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -14,9 +14,9 @@ interface Message {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/career-counselor`;
 
 const quickPrompts = [
-  { icon: TrendingUp, text: "Career path for Data Science", bg: "from-emerald-500/20", border: "border-emerald-500/50", color: "text-emerald-400" },
-  { icon: Target, text: "Skills to learn for AI/ML", bg: "from-blue-500/20", border: "border-blue-500/50", color: "text-blue-400" },
-  { icon: Zap, text: "Quick interview tips", bg: "from-amber-500/20", border: "border-amber-500/50", color: "text-amber-400" },
+  { icon: TrendingUp, text: "Career path for", bg: "bg-emerald-500/20", color: "text-emerald-400" },
+  { icon: Target, text: "Skills to learn", bg: "bg-blue-500/20", color: "text-blue-400" },
+  { icon: Zap, text: "Quick interview tips", bg: "bg-amber-500/20", color: "text-amber-400" },
 ];
 
 const CareerChatbot = () => {
@@ -121,8 +121,8 @@ const CareerChatbot = () => {
       {/* Header */}
       <div className="p-4 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h3 className="font-semibold text-foreground">Career Counselor</h3>
@@ -142,7 +142,7 @@ const CareerChatbot = () => {
                 <button
                   key={i}
                   onClick={() => sendMessage(p.text)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r ${p.bg} to-transparent border-l-2 ${p.border} hover:opacity-80 transition-opacity text-left`}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg ${p.bg} hover:opacity-80 transition-opacity text-left`}
                 >
                   <p.icon className={`w-4 h-4 ${p.color}`} />
                   <span className="text-xs text-foreground">{p.text}</span>
@@ -158,25 +158,27 @@ const CareerChatbot = () => {
                 className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
                 <div
                   className={`max-w-[85%] rounded-xl px-3 py-2 ${
                     msg.role === "user"
-                      ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-gradient-to-br from-muted/60 to-muted/30 border border-border/50"
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <ChatMessageStyled content={msg.content} isCompact={false} />
+                    <div className="text-xs prose prose-invert prose-xs max-w-none [&_p]:mb-1 [&_ul]:mb-1 [&_li]:mb-0 [&_strong]:text-primary [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_table]:text-[10px]">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
                   ) : (
                     <p className="text-xs">{msg.content}</p>
                   )}
                 </div>
                 {msg.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent/30 to-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
                     <User className="w-4 h-4 text-accent" />
                   </div>
                 )}
@@ -188,11 +190,7 @@ const CareerChatbot = () => {
                   <Bot className="w-4 h-4 text-primary" />
                 </div>
                 <div className="bg-muted/50 rounded-xl px-4 py-2">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                 </div>
               </div>
             )}
