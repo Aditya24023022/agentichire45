@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +24,6 @@ interface VideoCallProps {
   currentUserId: string;
 }
 
-interface SignalData {
-  type: "offer" | "answer" | "candidate" | "end";
-  data: RTCSessionDescriptionInit | RTCIceCandidateInit | null;
-  from: string;
-  to: string;
-}
-
 export const VideoCall = ({
   open,
   onOpenChange,
@@ -40,12 +33,12 @@ export const VideoCall = ({
   callType,
   currentUserId,
 }: VideoCallProps) => {
-  const [isConnecting, setIsConnecting] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
+  const [callState, setCallState] = useState<"permission" | "connecting" | "connected" | "ended">("permission");
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(callType === "audio");
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -62,48 +55,11 @@ export const VideoCall = ({
     ],
   };
 
-  const createPeerConnection = useCallback(() => {
-    const pc = new RTCPeerConnection(configuration);
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate && channelRef.current) {
-        channelRef.current.send({
-          type: "broadcast",
-          event: "signal",
-          payload: {
-            type: "candidate",
-            data: event.candidate,
-            from: currentUserId,
-          },
-        });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") {
-        setIsConnecting(false);
-        setIsConnected(true);
-        startTimer();
-      } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
-        toast.error("Connection lost");
-        handleEndCall();
-      }
-    };
-
-    return pc;
-  }, [currentUserId]);
-
-  const startTimer = () => {
+  const startTimer = useCallback(() => {
     timerRef.current = setInterval(() => {
       setCallDuration((prev) => prev + 1);
     }, 1000);
-  };
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -111,103 +67,24 @@ export const VideoCall = ({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const initializeMedia = async () => {
-    try {
-      const constraints: MediaStreamConstraints = {
-        audio: true,
-        video: callType === "video" ? { facingMode: "user" } : false,
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      localStreamRef.current = stream;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      return stream;
-    } catch (error) {
-      console.error("Error accessing media devices:", error);
-      toast.error("Could not access camera/microphone");
-      throw error;
+  const cleanup = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
-  };
 
-  const handleSignal = async (signal: SignalData) => {
-    const pc = peerConnectionRef.current;
-    if (!pc) return;
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    peerConnectionRef.current?.close();
 
-    try {
-      if (signal.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.data as RTCSessionDescriptionInit));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        channelRef.current?.send({
-          type: "broadcast",
-          event: "signal",
-          payload: {
-            type: "answer",
-            data: answer,
-            from: currentUserId,
-          },
-        });
-      } else if (signal.type === "answer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.data as RTCSessionDescriptionInit));
-      } else if (signal.type === "candidate") {
-        await pc.addIceCandidate(new RTCIceCandidate(signal.data as RTCIceCandidateInit));
-      } else if (signal.type === "end") {
-        handleEndCall();
-      }
-    } catch (error) {
-      console.error("Error handling signal:", error);
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
     }
-  };
 
-  const startCall = async () => {
-    try {
-      const stream = await initializeMedia();
-      const pc = createPeerConnection();
-      peerConnectionRef.current = pc;
+    setCallState("ended");
+    setCallDuration(0);
+  }, []);
 
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-
-      // Set up signaling channel
-      const channel = supabase.channel(`call:${callSessionId}`);
-      channelRef.current = channel;
-
-      channel.on("broadcast", { event: "signal" }, ({ payload }) => {
-        if (payload.from !== currentUserId) {
-          handleSignal(payload as SignalData);
-        }
-      });
-
-      await channel.subscribe();
-
-      if (isInitiator) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        channel.send({
-          type: "broadcast",
-          event: "signal",
-          payload: {
-            type: "offer",
-            data: offer,
-            from: currentUserId,
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Error starting call:", error);
-      toast.error("Failed to start call");
-      onOpenChange(false);
-    }
-  };
-
-  const handleEndCall = async () => {
+  const handleEndCall = useCallback(async () => {
     // Send end signal
     channelRef.current?.send({
       type: "broadcast",
@@ -231,24 +108,140 @@ export const VideoCall = ({
 
     cleanup();
     onOpenChange(false);
+  }, [currentUserId, callDuration, callSessionId, cleanup, onOpenChange]);
+
+  // CRITICAL: This is called directly from a button click, not from useEffect
+  const startCallWithPermission = async () => {
+    setPermissionError(null);
+    
+    try {
+      // Request media permissions directly in click handler
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+        video: callType === "video" ? { facingMode: "user" } : false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      // Now set up WebRTC connection
+      setCallState("connecting");
+      await setupPeerConnection(stream);
+      
+    } catch (error: any) {
+      console.error("Error accessing media devices:", error);
+      if (error.name === "NotAllowedError") {
+        setPermissionError("Camera/microphone access denied. Please allow access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        setPermissionError("No camera or microphone found. Please connect a device.");
+      } else {
+        setPermissionError("Could not access camera/microphone. Please try again.");
+      }
+    }
   };
 
-  const cleanup = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
+  const setupPeerConnection = async (stream: MediaStream) => {
+    const pc = new RTCPeerConnection(configuration);
+    peerConnectionRef.current = pc;
+
+    // Add local stream tracks
+    stream.getTracks().forEach((track) => {
+      pc.addTrack(track, stream);
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "signal",
+          payload: {
+            type: "candidate",
+            data: event.candidate,
+            from: currentUserId,
+          },
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current && event.streams[0]) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") {
+        setCallState("connected");
+        startTimer();
+      } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+        toast.error("Connection lost");
+        handleEndCall();
+      }
+    };
+
+    // Set up signaling channel
+    const channel = supabase.channel(`call:${callSessionId}`);
+    channelRef.current = channel;
+
+    channel.on("broadcast", { event: "signal" }, async ({ payload }) => {
+      if (payload.from !== currentUserId) {
+        await handleSignal(payload, pc);
+      }
+    });
+
+    await channel.subscribe();
+
+    if (isInitiator) {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      channel.send({
+        type: "broadcast",
+        event: "signal",
+        payload: {
+          type: "offer",
+          data: offer,
+          from: currentUserId,
+        },
+      });
     }
+  };
 
-    localStreamRef.current?.getTracks().forEach((track) => track.stop());
-    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
-    peerConnectionRef.current?.close();
+  const handleSignal = async (signal: any, pc: RTCPeerConnection) => {
+    try {
+      if (signal.type === "offer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "signal",
+          payload: {
+            type: "answer",
+            data: answer,
+            from: currentUserId,
+          },
+        });
+      } else if (signal.type === "answer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.data));
+      } else if (signal.type === "candidate") {
+        await pc.addIceCandidate(new RTCIceCandidate(signal.data));
+      } else if (signal.type === "end") {
+        cleanup();
+        onOpenChange(false);
+        toast.info("Call ended");
+      }
+    } catch (error) {
+      console.error("Error handling signal:", error);
     }
-
-    setIsConnecting(true);
-    setIsConnected(false);
-    setCallDuration(0);
   };
 
   const toggleMute = () => {
@@ -277,10 +270,8 @@ export const VideoCall = ({
 
     try {
       if (isScreenSharing) {
-        // Stop screen sharing
         screenStreamRef.current?.getTracks().forEach((track) => track.stop());
         
-        // Replace with camera video
         if (localStreamRef.current) {
           const videoTrack = localStreamRef.current.getVideoTracks()[0];
           const sender = pc.getSenders().find((s) => s.track?.kind === "video");
@@ -290,7 +281,6 @@ export const VideoCall = ({
         }
         setIsScreenSharing(false);
       } else {
-        // Start screen sharing
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
         });
@@ -314,21 +304,23 @@ export const VideoCall = ({
     }
   };
 
+  // Cleanup on dialog close
   useEffect(() => {
-    if (open) {
-      startCall();
+    if (!open) {
+      cleanup();
+      setCallState("permission");
+      setPermissionError(null);
     }
-
-    return () => {
-      if (!open) {
-        cleanup();
-      }
-    };
-  }, [open]);
+  }, [open, cleanup]);
 
   return (
     <Dialog open={open} onOpenChange={(value) => {
-      if (!value) handleEndCall();
+      if (!value && callState === "connected") {
+        handleEndCall();
+      } else {
+        cleanup();
+        onOpenChange(value);
+      }
     }}>
       <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col p-0">
         <DialogHeader className="p-4 border-b border-border">
@@ -349,13 +341,15 @@ export const VideoCall = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={isConnected ? "default" : "secondary"}>
-                {isConnecting ? (
+              <Badge variant={callState === "connected" ? "default" : "secondary"}>
+                {callState === "permission" ? (
+                  "Waiting..."
+                ) : callState === "connecting" ? (
                   <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Connecting...</>
-                ) : isConnected ? (
+                ) : callState === "connected" ? (
                   <><Wifi className="w-3 h-3 mr-1" /> {formatDuration(callDuration)}</>
                 ) : (
-                  <><WifiOff className="w-3 h-3 mr-1" /> Disconnected</>
+                  <><WifiOff className="w-3 h-3 mr-1" /> Ended</>
                 )}
               </Badge>
             </div>
@@ -363,104 +357,156 @@ export const VideoCall = ({
         </DialogHeader>
 
         <div className="flex-1 relative bg-black overflow-hidden">
-          {/* Remote Video (Full Screen) */}
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-cover"
-          />
+          {/* Permission Request Screen */}
+          {callState === "permission" && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background">
+              <div className="text-center max-w-md p-6">
+                <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
+                  {callType === "video" ? (
+                    <Video className="w-10 h-10 text-primary" />
+                  ) : (
+                    <Mic className="w-10 h-10 text-primary" />
+                  )}
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Start {callType === "video" ? "Video" : "Audio"} Call
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  Click the button below to allow access to your {callType === "video" ? "camera and microphone" : "microphone"}
+                </p>
+                
+                {permissionError && (
+                  <div className="p-4 rounded-lg bg-destructive/10 text-destructive mb-4 text-sm">
+                    {permissionError}
+                  </div>
+                )}
+                
+                <Button
+                  size="lg"
+                  onClick={startCallWithPermission}
+                  className="w-full"
+                >
+                  {callType === "video" ? (
+                    <Video className="w-5 h-5 mr-2" />
+                  ) : (
+                    <Phone className="w-5 h-5 mr-2" />
+                  )}
+                  Start Call
+                </Button>
+                
+                <p className="text-xs text-muted-foreground mt-4">
+                  Your browser will ask for permission to use your {callType === "video" ? "camera and microphone" : "microphone"}
+                </p>
+              </div>
+            </div>
+          )}
 
-          {/* Local Video (Picture in Picture) */}
-          {callType === "video" && (
-            <div className="absolute bottom-4 right-4 w-40 h-32 rounded-lg overflow-hidden border-2 border-primary shadow-lg">
+          {/* Remote Video (Full Screen) */}
+          {callState !== "permission" && (
+            <>
               <video
-                ref={localVideoRef}
+                ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                muted
-                className={`w-full h-full object-cover ${isVideoOff ? "hidden" : ""}`}
+                className="w-full h-full object-cover"
               />
-              {isVideoOff && (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <User className="w-8 h-8 text-muted-foreground" />
+
+              {/* Local Video (Picture in Picture) */}
+              {callType === "video" && (
+                <div className="absolute bottom-4 right-4 w-40 h-32 rounded-lg overflow-hidden border-2 border-primary shadow-lg">
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`w-full h-full object-cover ${isVideoOff ? "hidden" : ""}`}
+                  />
+                  {isVideoOff && (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <User className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Audio-only placeholder */}
-          {callType === "audio" && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-32 h-32 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                  <User className="w-16 h-16 text-primary" />
+              {/* Audio-only placeholder */}
+              {callType === "audio" && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-32 h-32 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+                      <User className="w-16 h-16 text-primary" />
+                    </div>
+                    <p className="text-white text-xl font-semibold">{partnerName}</p>
+                    <p className="text-white/70">
+                      {callState === "connected" ? "Connected" : "Connecting..."}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-white text-xl font-semibold">{partnerName}</p>
-                <p className="text-white/70">{isConnected ? "Connected" : "Connecting..."}</p>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* Connecting overlay */}
-          {isConnecting && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <div className="text-center">
-                <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
-                <p className="text-white text-lg">Connecting to {partnerName}...</p>
-              </div>
-            </div>
+              {/* Connecting overlay */}
+              {callState === "connecting" && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+                    <p className="text-white text-lg">Connecting to {partnerName}...</p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Controls */}
-        <div className="p-4 border-t border-border bg-background">
-          <div className="flex items-center justify-center gap-4">
-            <Button
-              variant={isMuted ? "destructive" : "outline"}
-              size="icon"
-              className="rounded-full w-12 h-12"
-              onClick={toggleMute}
-            >
-              {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </Button>
+        {callState !== "permission" && (
+          <div className="p-4 border-t border-border bg-background">
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                variant={isMuted ? "destructive" : "outline"}
+                size="icon"
+                className="rounded-full w-12 h-12"
+                onClick={toggleMute}
+              >
+                {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </Button>
 
-            {callType === "video" && (
-              <>
-                <Button
-                  variant={isVideoOff ? "destructive" : "outline"}
-                  size="icon"
-                  className="rounded-full w-12 h-12"
-                  onClick={toggleVideo}
-                >
-                  {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-                </Button>
+              {callType === "video" && (
+                <>
+                  <Button
+                    variant={isVideoOff ? "destructive" : "outline"}
+                    size="icon"
+                    className="rounded-full w-12 h-12"
+                    onClick={toggleVideo}
+                  >
+                    {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                  </Button>
 
-                <Button
-                  variant={isScreenSharing ? "default" : "outline"}
-                  size="icon"
-                  className="rounded-full w-12 h-12"
-                  onClick={toggleScreenShare}
-                >
-                  {isScreenSharing ? (
-                    <ScreenShareOff className="w-5 h-5" />
-                  ) : (
-                    <ScreenShare className="w-5 h-5" />
-                  )}
-                </Button>
-              </>
-            )}
+                  <Button
+                    variant={isScreenSharing ? "default" : "outline"}
+                    size="icon"
+                    className="rounded-full w-12 h-12"
+                    onClick={toggleScreenShare}
+                  >
+                    {isScreenSharing ? (
+                      <ScreenShareOff className="w-5 h-5" />
+                    ) : (
+                      <ScreenShare className="w-5 h-5" />
+                    )}
+                  </Button>
+                </>
+              )}
 
-            <Button
-              variant="destructive"
-              size="icon"
-              className="rounded-full w-14 h-14"
-              onClick={handleEndCall}
-            >
-              <PhoneOff className="w-6 h-6" />
-            </Button>
+              <Button
+                variant="destructive"
+                size="icon"
+                className="rounded-full w-14 h-14"
+                onClick={handleEndCall}
+              >
+                <PhoneOff className="w-6 h-6" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
