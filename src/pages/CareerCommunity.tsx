@@ -59,8 +59,13 @@ const CareerCommunity = () => {
   // Expert detail dialog
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   
+  // Chat dialog for direct chat from expert card
+  const [showChatDialog, setShowChatDialog] = useState(false);
+  const [chatExpert, setChatExpert] = useState<Expert | null>(null);
+  
   // User state
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("You");
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -74,6 +79,18 @@ const CareerCommunity = () => {
       return;
     }
     setUserId(session.user.id);
+    
+    // Fetch user's profile name
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    
+    if (profile) {
+      setUserName(profile.full_name || profile.email?.split("@")[0] || "You");
+    }
+    
     await fetchExperts();
   };
 
@@ -102,6 +119,11 @@ const CareerCommunity = () => {
     setMessageExpert(expert);
     setShowMessageDialog(true);
     setMessageText("");
+  };
+
+  const openChatDialog = (expert: Expert) => {
+    setChatExpert(expert);
+    setShowChatDialog(true);
   };
 
   const sendMessageToExpert = async () => {
@@ -184,7 +206,7 @@ const CareerCommunity = () => {
               </div>
             </div>
             {/* Student Inbox Button */}
-            {userId && <StudentInbox userId={userId} />}
+            {userId && <StudentInbox userId={userId} userName={userName} />}
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6">
             <div className="p-4 rounded-xl bg-background/50 text-center">
@@ -279,8 +301,8 @@ const CareerCommunity = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => openMessageDialog(expert)}
-                        title="Send Message"
+                        onClick={() => openChatDialog(expert)}
+                        title="Open Chat"
                       >
                         <MessageSquare className="w-4 h-4" />
                       </Button>
@@ -424,11 +446,11 @@ const CareerCommunity = () => {
                   variant="outline"
                   onClick={() => {
                     setShowDetailDialog(false);
-                    openMessageDialog(selectedExpert);
+                    openChatDialog(selectedExpert);
                   }}
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
-                  Message
+                  Chat
                 </Button>
                 <Button
                   className="flex-1"
@@ -571,6 +593,19 @@ const CareerCommunity = () => {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Chat Dialog for direct messaging */}
+      {chatExpert && userId && (
+        <ChatDialog
+          open={showChatDialog}
+          onOpenChange={setShowChatDialog}
+          expertId={chatExpert.id}
+          expertName={chatExpert.name}
+          expertUserId={chatExpert.user_id || chatExpert.id}
+          currentUserId={userId}
+          currentUserName={userName}
+          isExpert={false}
+        />
+      )}
     </FeaturePageLayout>
   );
 };

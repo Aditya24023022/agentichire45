@@ -10,11 +10,12 @@ import { Switch } from "@/components/ui/switch";
 import { 
   MessageSquare, Users, Star, Clock, Video, Send, 
   Phone, Calendar, Settings, TrendingUp,
-  CheckCircle, XCircle, User, Loader2, Wifi, WifiOff
+  CheckCircle, XCircle, User, Loader2, Wifi, WifiOff, PhoneCall
 } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/layout/Navbar";
 import { useExpertMessages } from "@/hooks/useExpertMessages";
+import { VideoCall } from "@/components/VideoCall";
 
 interface CallSession {
   id: string;
@@ -38,16 +39,27 @@ interface ExpertProfile {
   specializations: string[] | null;
 }
 
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 const ExpertDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [expertProfile, setExpertProfile] = useState<ExpertProfile | null>(null);
   const [callSessions, setCallSessions] = useState<CallSession[]>([]);
+  const [studentProfiles, setStudentProfiles] = useState<Map<string, Profile>>(new Map());
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Video call state
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [currentCallSession, setCurrentCallSession] = useState<CallSession | null>(null);
 
   // Use the expert messages hook
   const {
@@ -57,6 +69,7 @@ const ExpertDashboard = () => {
     markAsRead,
     getConversations,
     getMessagesWithPartner,
+    getSenderName,
   } = useExpertMessages({
     expertId: expertProfile?.id || "",
     currentUserId: userId || "",
@@ -71,7 +84,10 @@ const ExpertDashboard = () => {
   // Scroll to bottom when conversation changes
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
     }
   }, [selectedConversation, getMessagesWithPartner]);
 
@@ -133,7 +149,31 @@ const ExpertDashboard = () => {
       console.error("Error fetching call sessions:", error);
     } else {
       setCallSessions(data || []);
+      
+      // Fetch student profiles for call sessions
+      const studentIds = [...new Set(data?.map(c => c.student_id) || [])];
+      await fetchStudentProfiles(studentIds);
     }
+  };
+
+  const fetchStudentProfiles = async (studentIds: string[]) => {
+    if (studentIds.length === 0) return;
+    
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", studentIds);
+
+    if (data) {
+      const profileMap = new Map<string, Profile>();
+      data.forEach(p => profileMap.set(p.id, p));
+      setStudentProfiles(profileMap);
+    }
+  };
+
+  const getStudentName = (studentId: string) => {
+    const profile = studentProfiles.get(studentId);
+    return profile?.full_name || profile?.email?.split("@")[0] || "Student";
   };
 
   const toggleAvailability = async () => {
@@ -155,6 +195,9 @@ const ExpertDashboard = () => {
 
   const openConversation = async (partnerId: string) => {
     setSelectedConversation(partnerId);
+    
+    // Fetch profile for this student
+    await fetchStudentProfiles([partnerId]);
     
     // Mark messages as read
     const messages = getMessagesWithPartner(partnerId);
@@ -180,20 +223,64 @@ const ExpertDashboard = () => {
   };
 
   const handleCallAction = async (sessionId: string, action: "accept" | "reject") => {
-    const { error } = await supabase
+    const session = callSessions.find(s => s.id === sessionId);
+    
+    if (action === "accept" && session) {
+      // Update status and start the call
+      const { error } = await supabase
+        .from("call_sessions")
+        .update({ 
+          status: "active",
+          started_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
+
+      if (error) {
+        toast.error("Failed to accept call");
+      } else {
+        toast.success("Call accepted - starting...");
+        setCurrentCallSession(session);
+        setShowVideoCall(true);
+      }
+    } else {
+      const { error } = await supabase
+        .from("call_sessions")
+        .update({ 
+          status: "rejected",
+        })
+        .eq("id", sessionId);
+
+      if (error) {
+        toast.error("Failed to reject call");
+      } else {
+        toast.info("Call rejected");
+        if (expertProfile) fetchCallSessions(expertProfile.id);
+      }
+    }
+  };
+
+  const startCallWithStudent = async (studentId: string, callType: "video" | "audio") => {
+    if (!expertProfile) return;
+    
+    const { data, error } = await supabase
       .from("call_sessions")
-      .update({ 
-        status: action === "accept" ? "accepted" : "rejected",
-        started_at: action === "accept" ? new Date().toISOString() : null,
+      .insert({
+        student_id: studentId,
+        expert_id: expertProfile.id,
+        call_type: callType,
+        status: "active",
+        started_at: new Date().toISOString(),
       })
-      .eq("id", sessionId);
+      .select()
+      .single();
 
     if (error) {
-      toast.error(`Failed to ${action} call`);
-    } else {
-      toast.success(`Call ${action}ed`);
-      if (expertProfile) fetchCallSessions(expertProfile.id);
+      toast.error("Failed to start call");
+      return;
     }
+
+    setCurrentCallSession(data);
+    setShowVideoCall(true);
   };
 
   const conversations = getConversations();
@@ -202,6 +289,7 @@ const ExpertDashboard = () => {
     : [];
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const selectedStudentName = selectedConversation ? getSenderName(selectedConversation, "Student") : "Student";
 
   if (loading) {
     return (
@@ -323,7 +411,7 @@ const ExpertDashboard = () => {
                       </div>
                     ) : (
                       <div className="divide-y divide-border">
-                        {conversations.map(({ partnerId, lastMessage, unreadCount }) => (
+                        {conversations.map(({ partnerId, partnerName, lastMessage, unreadCount }) => (
                           <button
                             key={partnerId}
                             onClick={() => openConversation(partnerId)}
@@ -338,7 +426,7 @@ const ExpertDashboard = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
                                   <p className="font-medium text-foreground truncate">
-                                    Student
+                                    {partnerName}
                                   </p>
                                   {unreadCount > 0 && (
                                     <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">
@@ -365,13 +453,35 @@ const ExpertDashboard = () => {
                 <div className="md:col-span-2 rounded-xl bg-card border border-border overflow-hidden flex flex-col">
                   {selectedConversation ? (
                     <>
-                      <div className="p-4 border-b border-border flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
+                      <div className="p-4 border-b border-border flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                            <User className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">{selectedStudentName}</p>
+                            <p className="text-xs text-muted-foreground">Student</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-foreground">Student</p>
-                          <p className="text-xs text-muted-foreground">Active conversation</p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                            onClick={() => startCallWithStudent(selectedConversation, "audio")}
+                            title="Audio Call"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full"
+                            onClick={() => startCallWithStudent(selectedConversation, "video")}
+                            title="Video Call"
+                          >
+                            <Video className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                       
@@ -389,6 +499,11 @@ const ExpertDashboard = () => {
                                     : "bg-muted text-foreground"
                                 }`}
                               >
+                                {msg.sender_id !== userId && (
+                                  <p className="text-xs font-medium mb-1 opacity-70">
+                                    {getSenderName(msg.sender_id, "Student")}
+                                  </p>
+                                )}
                                 <p>{msg.message}</p>
                                 <p className={`text-xs mt-1 ${msg.sender_id === userId ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                                   {new Date(msg.created_at).toLocaleTimeString()}
@@ -450,7 +565,7 @@ const ExpertDashboard = () => {
                             <User className="w-5 h-5 text-primary" />
                           </div>
                           <div>
-                            <p className="font-medium text-foreground">Student Request</p>
+                            <p className="font-medium text-foreground">{getStudentName(session.student_id)}</p>
                             <p className="text-sm text-muted-foreground">
                               {session.call_type} call • {new Date(session.created_at).toLocaleDateString()}
                             </p>
@@ -459,7 +574,9 @@ const ExpertDashboard = () => {
                         <div className="flex items-center gap-2">
                           <Badge variant={
                             session.status === "pending" ? "secondary" :
-                            session.status === "accepted" ? "default" : "destructive"
+                            session.status === "active" ? "default" :
+                            session.status === "accepted" ? "default" : 
+                            session.status === "completed" ? "outline" : "destructive"
                           }>
                             {session.status}
                           </Badge>
@@ -476,9 +593,22 @@ const ExpertDashboard = () => {
                                 size="sm"
                                 onClick={() => handleCallAction(session.id, "accept")}
                               >
-                                <CheckCircle className="w-4 h-4" />
+                                <PhoneCall className="w-4 h-4 mr-1" />
+                                Accept
                               </Button>
                             </>
+                          )}
+                          {session.status === "active" && (
+                            <Button 
+                              size="sm"
+                              onClick={() => {
+                                setCurrentCallSession(session);
+                                setShowVideoCall(true);
+                              }}
+                            >
+                              <PhoneCall className="w-4 h-4 mr-1" />
+                              Join Call
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -561,6 +691,25 @@ const ExpertDashboard = () => {
           </Tabs>
         </div>
       </main>
+
+      {/* Video Call Dialog */}
+      {currentCallSession && (
+        <VideoCall
+          open={showVideoCall}
+          onOpenChange={(open) => {
+            setShowVideoCall(open);
+            if (!open) {
+              setCurrentCallSession(null);
+              if (expertProfile) fetchCallSessions(expertProfile.id);
+            }
+          }}
+          callSessionId={currentCallSession.id}
+          isInitiator={true}
+          partnerName={getStudentName(currentCallSession.student_id)}
+          callType={currentCallSession.call_type as "video" | "audio"}
+          currentUserId={userId || ""}
+        />
+      )}
     </div>
   );
 };

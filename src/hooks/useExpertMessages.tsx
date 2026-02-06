@@ -10,6 +10,13 @@ export interface Message {
   message: string;
   is_read: boolean;
   created_at: string;
+  sender_name?: string;
+}
+
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
 }
 
 interface UseExpertMessagesOptions {
@@ -20,8 +27,26 @@ interface UseExpertMessagesOptions {
 
 export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }: UseExpertMessagesOptions) => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+
+  // Fetch profile for a user ID
+  const fetchProfile = useCallback(async (userId: string) => {
+    if (profiles.has(userId)) return profiles.get(userId);
+    
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (data) {
+      setProfiles(prev => new Map(prev).set(userId, data));
+      return data;
+    }
+    return null;
+  }, [profiles]);
 
   // Fetch all messages for this expert conversation
   const fetchMessages = useCallback(async () => {
@@ -35,13 +60,20 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
         .order("created_at", { ascending: true });
 
       if (error) throw error;
+      
+      // Fetch profiles for all unique sender IDs
+      const senderIds = [...new Set(data?.map(m => m.sender_id) || [])];
+      for (const senderId of senderIds) {
+        await fetchProfile(senderId);
+      }
+      
       setMessages(data || []);
     } catch (error) {
       console.error("Error fetching messages:", error);
     } finally {
       setLoading(false);
     }
-  }, [expertId, currentUserId]);
+  }, [expertId, currentUserId, fetchProfile]);
 
   // Set up realtime subscription
   useEffect(() => {
@@ -50,7 +82,7 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
     fetchMessages();
     setConnectionStatus('connecting');
 
-    const channelName = `expert-chat-${expertId}`;
+    const channelName = `expert-chat-${expertId}-${Date.now()}`;
     
     const channel = supabase
       .channel(channelName)
@@ -62,9 +94,12 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
           table: "expert_messages",
           filter: `expert_id=eq.${expertId}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log("New message received:", payload);
           const newMessage = payload.new as Message;
+          
+          // Fetch profile for new sender if not already cached
+          await fetchProfile(newMessage.sender_id);
           
           // Deduplicate - only add if not already in messages
           setMessages((current) => {
@@ -78,7 +113,9 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
 
           // Show toast for incoming messages (not sent by current user)
           if (newMessage.sender_id !== currentUserId) {
-            toast.info("New message received!");
+            const profile = profiles.get(newMessage.sender_id);
+            const name = profile?.full_name || "Someone";
+            toast.info(`New message from ${name}!`);
           }
         }
       )
@@ -154,19 +191,27 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
       .eq("receiver_id", currentUserId);
   };
 
+  // Get sender name from profile
+  const getSenderName = useCallback((senderId: string, fallback: string = "User") => {
+    const profile = profiles.get(senderId);
+    return profile?.full_name || profile?.email?.split("@")[0] || fallback;
+  }, [profiles]);
+
   // Get unique conversations (for expert dashboard)
   const getConversations = useCallback(() => {
-    const conversationMap = new Map<string, { partnerId: string; lastMessage: Message; unreadCount: number }>();
+    const conversationMap = new Map<string, { partnerId: string; partnerName: string; lastMessage: Message; unreadCount: number }>();
     
     messages.forEach((msg) => {
       const partnerId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id;
       const existing = conversationMap.get(partnerId);
       
       const unreadCount = !msg.is_read && msg.receiver_id === currentUserId ? 1 : 0;
+      const partnerName = getSenderName(partnerId, "Student");
       
       if (!existing || new Date(msg.created_at) > new Date(existing.lastMessage.created_at)) {
         conversationMap.set(partnerId, {
           partnerId,
+          partnerName,
           lastMessage: msg,
           unreadCount: (existing?.unreadCount || 0) + unreadCount,
         });
@@ -179,7 +224,7 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
     });
 
     return Array.from(conversationMap.values());
-  }, [messages, currentUserId]);
+  }, [messages, currentUserId, getSenderName]);
 
   // Get messages for a specific conversation partner
   const getMessagesWithPartner = useCallback((partnerId: string) => {
@@ -191,12 +236,14 @@ export const useExpertMessages = ({ expertId, currentUserId, isExpert = false }:
 
   return {
     messages,
+    profiles,
     loading,
     connectionStatus,
     sendMessage,
     markAsRead,
     getConversations,
     getMessagesWithPartner,
+    getSenderName,
     refetch: fetchMessages,
   };
 };
