@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Briefcase, LogOut, Menu, X, User } from "lucide-react";
+import { Briefcase, LogOut, Menu, X, User, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -8,19 +8,37 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isExpert, setIsExpert] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkIfExpert(session.user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkIfExpert(session.user.id);
+      } else {
+        setIsExpert(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkIfExpert = async (userId: string) => {
+    const { data } = await supabase
+      .from("experts")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+    setIsExpert(!!data);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -44,22 +62,39 @@ export const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
-                <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Dashboard
-                </Link>
-                <Link to="/resume-optimizer" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Resume
-                </Link>
-                <Link to="/interview-prep" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Interview
-                </Link>
-                <Link 
-                  to="/profile" 
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-sm font-medium">Profile</span>
-                </Link>
+                {isExpert ? (
+                  <>
+                    <Link to="/expert-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+                      Dashboard
+                    </Link>
+                    <Link 
+                      to="/expert-dashboard" 
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                    >
+                      <Award className="w-4 h-4" />
+                      <span className="text-sm font-medium">Expert Panel</span>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+                      Dashboard
+                    </Link>
+                    <Link to="/resume-optimizer" className="text-muted-foreground hover:text-foreground transition-colors">
+                      Resume
+                    </Link>
+                    <Link to="/interview-prep" className="text-muted-foreground hover:text-foreground transition-colors">
+                      Interview
+                    </Link>
+                    <Link 
+                      to="/profile" 
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                    >
+                      <User className="w-4 h-4" />
+                      <span className="text-sm font-medium">Profile</span>
+                    </Link>
+                  </>
+                )}
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
@@ -92,18 +127,28 @@ export const Navbar = () => {
             <div className="flex flex-col gap-3">
               {user ? (
                 <>
-                  <Link to="/dashboard" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Dashboard
-                  </Link>
-                  <Link to="/resume-optimizer" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Resume
-                  </Link>
-                  <Link to="/interview-prep" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Interview
-                  </Link>
-                  <Link to="/profile" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
-                    Profile
-                  </Link>
+                  {isExpert ? (
+                    <>
+                      <Link to="/expert-dashboard" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
+                        Expert Dashboard
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/dashboard" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
+                        Dashboard
+                      </Link>
+                      <Link to="/resume-optimizer" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
+                        Resume
+                      </Link>
+                      <Link to="/interview-prep" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
+                        Interview
+                      </Link>
+                      <Link to="/profile" className="px-4 py-2 text-foreground hover:bg-accent rounded-lg transition-colors">
+                        Profile
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="px-4 py-2 text-left text-foreground hover:bg-accent rounded-lg transition-colors flex items-center gap-2"

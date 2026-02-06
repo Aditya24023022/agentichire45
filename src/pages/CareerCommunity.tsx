@@ -9,7 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Users, Star, Clock, Video, MessageSquare, Send, 
   IndianRupee, Calendar, Award, Briefcase, CheckCircle2,
-  Play, Pause, PhoneOff, CreditCard, QrCode, Copy, Coins
+  Play, Pause, PhoneOff, CreditCard, QrCode, Copy, Coins,
+  Phone, X, Mail
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -67,6 +68,18 @@ const CareerCommunity = () => {
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [transactionId, setTransactionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  
+  // Messaging dialog
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const [messageExpert, setMessageExpert] = useState<Expert | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  
+  // Call request dialog
+  const [showCallDialog, setShowCallDialog] = useState(false);
+  const [callExpert, setCallExpert] = useState<Expert | null>(null);
+  const [callType, setCallType] = useState<"video" | "audio">("video");
+  const [requestingCall, setRequestingCall] = useState(false);
   
   // User state
   const [userId, setUserId] = useState<string | null>(null);
@@ -235,6 +248,69 @@ const CareerCommunity = () => {
     setSubmitting(false);
   };
 
+  const openMessageDialog = (expert: Expert) => {
+    setMessageExpert(expert);
+    setShowMessageDialog(true);
+    setMessageText("");
+  };
+
+  const sendMessageToExpert = async () => {
+    if (!messageText.trim() || !messageExpert || !userId) return;
+    
+    setSendingMessage(true);
+    
+    const { error } = await supabase.from("expert_messages").insert({
+      sender_id: userId,
+      receiver_id: messageExpert.id, // Using expert id as receiver for now
+      expert_id: messageExpert.id,
+      message: messageText.trim(),
+    });
+
+    if (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    } else {
+      toast.success(`Message sent to ${messageExpert.name}!`);
+      setShowMessageDialog(false);
+      setMessageText("");
+      setMessageExpert(null);
+    }
+    setSendingMessage(false);
+  };
+
+  const openCallDialog = (expert: Expert) => {
+    if (userCredits < 10) {
+      toast.error("You need at least 10 credits to request a call");
+      setShowPaymentDialog(true);
+      return;
+    }
+    setCallExpert(expert);
+    setShowCallDialog(true);
+  };
+
+  const requestCall = async () => {
+    if (!callExpert || !userId) return;
+    
+    setRequestingCall(true);
+    
+    const { error } = await supabase.from("call_sessions").insert({
+      student_id: userId,
+      expert_id: callExpert.id,
+      call_type: callType,
+      status: "pending",
+    });
+
+    if (error) {
+      console.error("Error requesting call:", error);
+      toast.error("Failed to request call");
+    } else {
+      toast.success(`Call request sent to ${callExpert.name}! They will respond soon.`);
+      setShowCallDialog(false);
+      setCallExpert(null);
+    }
+    setRequestingCall(false);
+  };
+
   const getExpertAvatar = (expert: Expert) => {
     if (expert.avatar_url) return expert.avatar_url;
     const avatars = ["👨‍💼", "👩‍💼", "👨‍💻", "👩‍🔬", "🧑‍💼"];
@@ -347,21 +423,39 @@ const CareerCommunity = () => {
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                           {expert.rating || 5.0}
                         </span>
                         <span className="flex items-center gap-1">
                           <Video className="w-4 h-4" />
-                          {expert.total_sessions || 0} sessions
+                          {expert.total_sessions || 0}
                         </span>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="hero"
-                        onClick={() => startSession(expert)}
-                      >
-                        Connect
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openMessageDialog(expert)}
+                          title="Send Message"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openCallDialog(expert)}
+                          title="Request Call"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="hero"
+                          onClick={() => startSession(expert)}
+                        >
+                          Connect
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -599,6 +693,127 @@ const CareerCommunity = () => {
                 </p>
               </>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-primary" />
+              Message {messageExpert?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Send a message to the expert. They will respond to your query.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {messageExpert && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-xl">
+                  {getExpertAvatar(messageExpert)}
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">{messageExpert.name}</p>
+                  <p className="text-sm text-muted-foreground">{messageExpert.title}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder="Write your message here... Ask about career advice, interview tips, or any career-related questions."
+                className="w-full min-h-[120px] p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+
+            <Button
+              className="w-full"
+              variant="hero"
+              onClick={sendMessageToExpert}
+              disabled={sendingMessage || !messageText.trim()}
+            >
+              {sendingMessage ? "Sending..." : "Send Message"}
+              <Send className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Call Request Dialog */}
+      <Dialog open={showCallDialog} onOpenChange={setShowCallDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="w-5 h-5 text-primary" />
+              Request Call with {callExpert?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Request a video or audio call. The expert will confirm the call.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {callExpert && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-xl">
+                  {getExpertAvatar(callExpert)}
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">{callExpert.name}</p>
+                  <p className="text-sm text-muted-foreground">{callExpert.title}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Call Type</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setCallType("video")}
+                  className={`p-4 rounded-xl border-2 transition-all text-center ${
+                    callType === "video"
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <Video className="w-6 h-6 mx-auto mb-2 text-primary" />
+                  <p className="font-medium text-foreground">Video Call</p>
+                </button>
+                <button
+                  onClick={() => setCallType("audio")}
+                  className={`p-4 rounded-xl border-2 transition-all text-center ${
+                    callType === "audio"
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <Phone className="w-6 h-6 mx-auto mb-2 text-primary" />
+                  <p className="font-medium text-foreground">Audio Call</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/30">
+              <p className="text-sm text-foreground">
+                <strong>Note:</strong> 10 credits = 25 minutes of session time. You have <strong>{userCredits} credits</strong>.
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              variant="hero"
+              onClick={requestCall}
+              disabled={requestingCall}
+            >
+              {requestingCall ? "Requesting..." : "Request Call"}
+              <Phone className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      call_sessions: {
+        Row: {
+          call_type: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          ended_at: string | null
+          expert_id: string
+          id: string
+          started_at: string | null
+          status: string | null
+          student_id: string
+        }
+        Insert: {
+          call_type?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          expert_id: string
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          student_id: string
+        }
+        Update: {
+          call_type?: string | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          expert_id?: string
+          id?: string
+          started_at?: string | null
+          status?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_expert_id_fkey"
+            columns: ["expert_id"]
+            isOneToOne: false
+            referencedRelation: "experts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_transactions: {
         Row: {
           amount: number
@@ -100,6 +144,44 @@ export type Database = {
           },
         ]
       }
+      expert_messages: {
+        Row: {
+          created_at: string | null
+          expert_id: string
+          id: string
+          is_read: boolean | null
+          message: string
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expert_id: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expert_id?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expert_messages_expert_id_fkey"
+            columns: ["expert_id"]
+            isOneToOne: false
+            referencedRelation: "experts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       experts: {
         Row: {
           available: boolean | null
@@ -109,15 +191,18 @@ export type Database = {
           company: string | null
           created_at: string | null
           created_by: string | null
+          email: string | null
           id: string
           linkedin_url: string | null
           name: string
+          phone: string | null
           price_per_session: number
           rating: number | null
           specializations: string[] | null
           title: string
           total_sessions: number | null
           updated_at: string | null
+          user_id: string | null
           years_experience: number | null
         }
         Insert: {
@@ -128,15 +213,18 @@ export type Database = {
           company?: string | null
           created_at?: string | null
           created_by?: string | null
+          email?: string | null
           id?: string
           linkedin_url?: string | null
           name: string
+          phone?: string | null
           price_per_session?: number
           rating?: number | null
           specializations?: string[] | null
           title: string
           total_sessions?: number | null
           updated_at?: string | null
+          user_id?: string | null
           years_experience?: number | null
         }
         Update: {
@@ -147,15 +235,18 @@ export type Database = {
           company?: string | null
           created_at?: string | null
           created_by?: string | null
+          email?: string | null
           id?: string
           linkedin_url?: string | null
           name?: string
+          phone?: string | null
           price_per_session?: number
           rating?: number | null
           specializations?: string[] | null
           title?: string
           total_sessions?: number | null
           updated_at?: string | null
+          user_id?: string | null
           years_experience?: number | null
         }
         Relationships: []
@@ -457,7 +548,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "expert"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -585,7 +676,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "expert"],
     },
   },
 } as const
