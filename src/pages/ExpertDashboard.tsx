@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,21 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { 
   MessageSquare, Users, Star, Clock, Video, Send, 
-  Phone, Calendar, Settings, Bell, TrendingUp,
-  CheckCircle, XCircle, User, Loader2, ArrowLeft
+  Phone, Calendar, Settings, TrendingUp,
+  CheckCircle, XCircle, User, Loader2, Wifi, WifiOff
 } from "lucide-react";
 import { toast } from "sonner";
 import { Navbar } from "@/components/layout/Navbar";
-
-interface Message {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  message: string;
-  is_read: boolean;
-  created_at: string;
-  sender_name?: string;
-}
+import { useExpertMessages } from "@/hooks/useExpertMessages";
 
 interface CallSession {
   id: string;
@@ -32,7 +23,6 @@ interface CallSession {
   call_type: string;
   created_at: string;
   duration_seconds: number | null;
-  student_name?: string;
 }
 
 interface ExpertProfile {
@@ -52,18 +42,38 @@ const ExpertDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [expertProfile, setExpertProfile] = useState<ExpertProfile | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [callSessions, setCallSessions] = useState<CallSession[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Use the expert messages hook
+  const {
+    loading: messagesLoading,
+    connectionStatus,
+    sendMessage,
+    markAsRead,
+    getConversations,
+    getMessagesWithPartner,
+  } = useExpertMessages({
+    expertId: expertProfile?.id || "",
+    currentUserId: userId || "",
+    isExpert: true,
+  });
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
     checkAuthAndFetch();
   }, []);
+
+  // Scroll to bottom when conversation changes
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [selectedConversation, getMessagesWithPartner]);
 
   const checkAuthAndFetch = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -79,7 +89,7 @@ const ExpertDashboard = () => {
       .from("experts")
       .select("*")
       .eq("user_id", session.user.id)
-      .single();
+      .maybeSingle();
 
     if (error || !expert) {
       navigate("/expert-onboarding");
@@ -87,50 +97,29 @@ const ExpertDashboard = () => {
     }
 
     setExpertProfile(expert);
-    await Promise.all([
-      fetchMessages(expert.id),
-      fetchCallSessions(expert.id),
-    ]);
+    await fetchCallSessions(expert.id);
     setLoading(false);
 
-    // Subscribe to new messages
-    const channel = supabase
-      .channel("expert-messages")
+    // Subscribe to call session updates
+    const callChannel = supabase
+      .channel("expert-calls")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
-          table: "expert_messages",
+          table: "call_sessions",
           filter: `expert_id=eq.${expert.id}`,
         },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          if (newMessage.sender_id !== session.user.id) {
-            setMessages((prev) => [newMessage, ...prev]);
-            toast.info("New message received!");
-          }
+        () => {
+          fetchCallSessions(expert.id);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(callChannel);
     };
-  };
-
-  const fetchMessages = async (expertId: string) => {
-    const { data, error } = await supabase
-      .from("expert_messages")
-      .select("*")
-      .eq("expert_id", expertId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching messages:", error);
-    } else {
-      setMessages(data || []);
-    }
   };
 
   const fetchCallSessions = async (expertId: string) => {
@@ -164,53 +153,27 @@ const ExpertDashboard = () => {
     }
   };
 
-  const openConversation = async (senderId: string) => {
-    if (!expertProfile) return;
+  const openConversation = async (partnerId: string) => {
+    setSelectedConversation(partnerId);
     
-    setSelectedConversation(senderId);
+    // Mark messages as read
+    const messages = getMessagesWithPartner(partnerId);
+    const unreadIds = messages
+      .filter(m => m.receiver_id === userId && !m.is_read)
+      .map(m => m.id);
     
-    const { data } = await supabase
-      .from("expert_messages")
-      .select("*")
-      .eq("expert_id", expertProfile.id)
-      .or(`sender_id.eq.${senderId},receiver_id.eq.${senderId}`)
-      .order("created_at", { ascending: true });
-
-    setConversationMessages(data || []);
-
-    // Mark as read
-    await supabase
-      .from("expert_messages")
-      .update({ is_read: true })
-      .eq("sender_id", senderId)
-      .eq("receiver_id", userId);
+    if (unreadIds.length > 0) {
+      await markAsRead(unreadIds);
+    }
   };
 
-  const sendReply = async () => {
-    if (!replyText.trim() || !selectedConversation || !expertProfile || !userId) return;
+  const handleSendReply = async () => {
+    if (!replyText.trim() || !selectedConversation || !expertProfile) return;
 
     setSending(true);
-    const { error } = await supabase.from("expert_messages").insert({
-      sender_id: userId,
-      receiver_id: selectedConversation,
-      expert_id: expertProfile.id,
-      message: replyText.trim(),
-    });
-
-    if (error) {
-      toast.error("Failed to send message");
-    } else {
-      setConversationMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          sender_id: userId,
-          receiver_id: selectedConversation,
-          message: replyText.trim(),
-          is_read: false,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+    const success = await sendMessage(replyText.trim(), selectedConversation);
+    
+    if (success) {
       setReplyText("");
     }
     setSending(false);
@@ -233,20 +196,12 @@ const ExpertDashboard = () => {
     }
   };
 
-  const getUniqueConversations = () => {
-    const unique = new Map<string, Message>();
-    messages.forEach((msg) => {
-      const otherId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
-      if (!unique.has(otherId) || new Date(msg.created_at) > new Date(unique.get(otherId)!.created_at)) {
-        unique.set(otherId, msg);
-      }
-    });
-    return Array.from(unique.entries());
-  };
+  const conversations = getConversations();
+  const currentMessages = selectedConversation 
+    ? getMessagesWithPartner(selectedConversation) 
+    : [];
 
-  const getUnreadCount = (senderId: string) => {
-    return messages.filter(m => m.sender_id === senderId && !m.is_read).length;
-  };
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   if (loading) {
     return (
@@ -273,6 +228,19 @@ const ExpertDashboard = () => {
               <p className="text-muted-foreground">Welcome back, {expertProfile.name}</p>
             </div>
             <div className="flex items-center gap-4">
+              {/* Connection Status */}
+              <Badge 
+                variant={connectionStatus === 'connected' ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {connectionStatus === 'connected' ? (
+                  <><Wifi className="w-3 h-3 mr-1" /> Live</>
+                ) : connectionStatus === 'connecting' ? (
+                  <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Connecting</>
+                ) : (
+                  <><WifiOff className="w-3 h-3 mr-1" /> Offline</>
+                )}
+              </Badge>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Available</span>
                 <Switch 
@@ -291,8 +259,8 @@ const ExpertDashboard = () => {
             {[
               { icon: Star, label: "Rating", value: expertProfile.rating?.toFixed(1) || "5.0", color: "text-yellow-500" },
               { icon: Video, label: "Total Sessions", value: expertProfile.total_sessions || 0, color: "text-primary" },
-              { icon: MessageSquare, label: "Messages", value: messages.length, color: "text-blue-500" },
-              { icon: TrendingUp, label: "Earnings", value: `₹${(expertProfile.total_sessions || 0) * expertProfile.price_per_session}`, color: "text-green-500" },
+              { icon: MessageSquare, label: "Conversations", value: conversations.length, color: "text-blue-500" },
+              { icon: TrendingUp, label: "Unread", value: totalUnread, color: "text-green-500" },
             ].map((stat, i) => (
               <div key={i} className="p-4 rounded-xl bg-card border border-border">
                 <div className="flex items-center gap-3">
@@ -314,9 +282,9 @@ const ExpertDashboard = () => {
               <TabsTrigger value="messages" className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" />
                 Messages
-                {messages.filter(m => !m.is_read && m.sender_id !== userId).length > 0 && (
+                {totalUnread > 0 && (
                   <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center">
-                    {messages.filter(m => !m.is_read && m.sender_id !== userId).length}
+                    {totalUnread}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -343,19 +311,24 @@ const ExpertDashboard = () => {
                     <h3 className="font-semibold text-foreground">Conversations</h3>
                   </div>
                   <ScrollArea className="h-[540px]">
-                    {getUniqueConversations().length === 0 ? (
+                    {messagesLoading ? (
+                      <div className="p-8 text-center">
+                        <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
+                      </div>
+                    ) : conversations.length === 0 ? (
                       <div className="p-8 text-center text-muted-foreground">
                         <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>No messages yet</p>
+                        <p className="text-xs mt-1">Students will message you here</p>
                       </div>
                     ) : (
                       <div className="divide-y divide-border">
-                        {getUniqueConversations().map(([senderId, lastMsg]) => (
+                        {conversations.map(({ partnerId, lastMessage, unreadCount }) => (
                           <button
-                            key={senderId}
-                            onClick={() => openConversation(senderId)}
+                            key={partnerId}
+                            onClick={() => openConversation(partnerId)}
                             className={`w-full p-4 text-left hover:bg-muted/50 transition-colors ${
-                              selectedConversation === senderId ? "bg-muted/50" : ""
+                              selectedConversation === partnerId ? "bg-muted/50" : ""
                             }`}
                           >
                             <div className="flex items-center gap-3">
@@ -367,14 +340,17 @@ const ExpertDashboard = () => {
                                   <p className="font-medium text-foreground truncate">
                                     Student
                                   </p>
-                                  {getUnreadCount(senderId) > 0 && (
+                                  {unreadCount > 0 && (
                                     <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">
-                                      {getUnreadCount(senderId)}
+                                      {unreadCount}
                                     </Badge>
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">
-                                  {lastMsg.message}
+                                  {lastMessage.message}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(lastMessage.created_at).toLocaleTimeString()}
                                 </p>
                               </div>
                             </div>
@@ -399,9 +375,9 @@ const ExpertDashboard = () => {
                         </div>
                       </div>
                       
-                      <ScrollArea className="flex-1 p-4">
+                      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
                         <div className="space-y-4">
-                          {conversationMessages.map((msg) => (
+                          {currentMessages.map((msg) => (
                             <div
                               key={msg.id}
                               className={`flex ${msg.sender_id === userId ? "justify-end" : "justify-start"}`}
@@ -414,7 +390,7 @@ const ExpertDashboard = () => {
                                 }`}
                               >
                                 <p>{msg.message}</p>
-                                <p className="text-xs opacity-70 mt-1">
+                                <p className={`text-xs mt-1 ${msg.sender_id === userId ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                                   {new Date(msg.created_at).toLocaleTimeString()}
                                 </p>
                               </div>
@@ -429,10 +405,15 @@ const ExpertDashboard = () => {
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
                             placeholder="Type your reply..."
-                            onKeyPress={(e) => e.key === "Enter" && sendReply()}
+                            onKeyPress={(e) => e.key === "Enter" && handleSendReply()}
+                            disabled={sending}
                           />
-                          <Button onClick={sendReply} disabled={sending}>
-                            <Send className="w-4 h-4" />
+                          <Button onClick={handleSendReply} disabled={sending || !replyText.trim()}>
+                            {sending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -544,8 +525,12 @@ const ExpertDashboard = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-foreground">Price per Session</p>
-                        <p className="text-sm text-muted-foreground">₹{expertProfile.price_per_session}</p>
+                        <p className="font-medium text-foreground">Specializations</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {expertProfile.specializations?.map((spec, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{spec}</Badge>
+                          )) || <span className="text-sm text-muted-foreground">Not set</span>}
+                        </div>
                       </div>
                       <Button variant="outline" size="sm">Edit</Button>
                     </div>

@@ -3,13 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { FeaturePageLayout } from "@/components/FeaturePageLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Users, Star, Video, MessageSquare, Send, 
   Calendar, Award, Briefcase, CheckCircle2,
-  Phone, X, Linkedin, ExternalLink
+  Phone, Linkedin, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { StudentInbox } from "@/components/StudentInbox";
+import { ChatDialog } from "@/components/ChatDialog";
 
 interface Expert {
   id: string;
@@ -172,14 +173,18 @@ const CareerCommunity = () => {
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Hero Section */}
         <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 border border-primary/30">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Users className="w-8 h-8 text-primary" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Users className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Connect with Industry Experts</h2>
+                <p className="text-muted-foreground">Get personalized advice from professionals in your field</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Connect with Industry Experts</h2>
-              <p className="text-muted-foreground">Get personalized advice from professionals in your field</p>
-            </div>
+            {/* Student Inbox Button */}
+            {userId && <StudentInbox userId={userId} />}
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6">
             <div className="p-4 rounded-xl bg-background/50 text-center">
