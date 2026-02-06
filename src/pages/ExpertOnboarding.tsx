@@ -71,7 +71,7 @@ const ExpertOnboarding = () => {
       .from("experts")
       .select("id")
       .eq("user_id", session.user.id)
-      .single();
+      .maybeSingle();
     
     if (existingExpert) {
       navigate("/expert-dashboard");
