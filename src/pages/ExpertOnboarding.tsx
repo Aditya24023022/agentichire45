@@ -123,7 +123,7 @@ const ExpertOnboarding = () => {
         linkedin_url: validatedData.linkedin_url || null,
         calendar_link: validatedData.calendar_link || null,
         specializations: specializations,
-        available: false, // Pending approval
+        available: true, // Immediately available
         price_per_session: 500,
         rating: 5.0,
         total_sessions: 0,
@@ -137,7 +137,7 @@ const ExpertOnboarding = () => {
         role: "expert",
       });
 
-      toast.success("Expert profile created! Pending admin approval.");
+      toast.success("Expert profile created! You're now visible to students.");
       navigate("/expert-dashboard");
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -348,10 +348,10 @@ const ExpertOnboarding = () => {
           <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
             <h4 className="font-medium text-foreground mb-2">What happens next?</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Your profile will be reviewed by our team</li>
-              <li>• Once approved, you'll appear in the Career Community</li>
-              <li>• Students can message you and book sessions</li>
-              <li>• You earn based on session duration</li>
+              <li>• Your profile will be immediately visible to students</li>
+              <li>• Students can message you directly</li>
+              <li>• You can manage availability from your dashboard</li>
+              <li>• Help students achieve their career goals</li>
             </ul>
           </div>
 
