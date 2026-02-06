@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, FileText, Mail, MessageSquare } from "lucide-react";
+import { ArrowRight, Sparkles, FileText, Mail, MessageSquare, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const Hero = () => {
@@ -36,7 +36,7 @@ export const Hero = () => {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-slide-up" style={{ animationDelay: "0.3s" }}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 animate-slide-up" style={{ animationDelay: "0.3s" }}>
             <Button asChild variant="hero" size="xl">
               <Link to="/auth?mode=signup">
                 Start Free
@@ -48,6 +48,18 @@ export const Hero = () => {
                 See How It Works
               </Link>
             </Button>
+          </div>
+
+          {/* Expert CTA */}
+          <div className="mb-16 animate-slide-up" style={{ animationDelay: "0.35s" }}>
+            <Link 
+              to="/auth?mode=signup&role=expert"
+              className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors text-sm font-medium group"
+            >
+              <Award className="w-4 h-4" />
+              <span>Are you an industry expert? Join our Career Community</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
 
           {/* Feature Cards Preview */}

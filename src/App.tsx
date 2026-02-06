@@ -25,6 +25,8 @@ import NetworkingMessages from "./pages/NetworkingMessages";
 import CareerAdvisor from "./pages/CareerAdvisor";
 import CareerCommunity from "./pages/CareerCommunity";
 import AdminPanel from "./pages/AdminPanel";
+import ExpertOnboarding from "./pages/ExpertOnboarding";
+import ExpertDashboard from "./pages/ExpertDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +60,8 @@ const App = () => (
           <Route path="/career-advisor" element={<CareerAdvisor />} />
           <Route path="/career-community" element={<CareerCommunity />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/expert-onboarding" element={<ExpertOnboarding />} />
+          <Route path="/expert-dashboard" element={<ExpertDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Briefcase, Mail, Lock, ArrowRight, Loader2, User } from "lucide-react";
+import { Briefcase, Mail, Lock, ArrowRight, Loader2, User, Award } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -15,6 +15,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(searchParams.get("mode") !== "signup");
+  const [isExpert, setIsExpert] = useState(searchParams.get("role") === "expert");
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,21 +26,39 @@ const Auth = () => {
     
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/dashboard");
+        checkUserRole(session.user.id);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        navigate("/dashboard");
+        await checkUserRole(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const checkUserRole = async (userId: string) => {
+    // Check if user is an expert
+    const { data: expertData } = await supabase
+      .from("experts")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+
+    if (expertData) {
+      navigate("/expert-dashboard");
+    } else if (isExpert) {
+      navigate("/expert-onboarding");
+    } else {
+      navigate("/dashboard");
+    }
+  };
+
   useEffect(() => {
     setIsLogin(searchParams.get("mode") !== "signup");
+    setIsExpert(searchParams.get("role") === "expert");
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,14 +71,19 @@ const Auth = () => {
       passwordSchema.parse(password);
 
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
         toast.success("Welcome back!");
+        
+        // Check role after login
+        if (data.user) {
+          await checkUserRole(data.user.id);
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -70,7 +94,13 @@ const Auth = () => {
           },
         });
         if (error) throw error;
-        toast.success("Account created! Welcome to AgenticHire.");
+        
+        if (isExpert && data.user) {
+          toast.success("Account created! Complete your expert profile.");
+          navigate("/expert-onboarding");
+        } else {
+          toast.success("Account created! Welcome to AgenticHire.");
+        }
       }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -105,15 +135,49 @@ const Auth = () => {
           </span>
         </Link>
 
+        {/* Role Toggle */}
+        {!isLogin && (
+          <div className="flex gap-2 mb-6">
+            <button
+              type="button"
+              onClick={() => setIsExpert(false)}
+              className={`flex-1 p-4 rounded-xl border transition-all ${
+                !isExpert 
+                  ? "border-primary bg-primary/10 text-foreground" 
+                  : "border-border bg-card/50 text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              <User className="w-6 h-6 mx-auto mb-2" />
+              <p className="font-medium text-sm">I'm a Student</p>
+              <p className="text-xs opacity-70">Looking for guidance</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsExpert(true)}
+              className={`flex-1 p-4 rounded-xl border transition-all ${
+                isExpert 
+                  ? "border-primary bg-primary/10 text-foreground" 
+                  : "border-border bg-card/50 text-muted-foreground hover:border-primary/50"
+              }`}
+            >
+              <Award className="w-6 h-6 mx-auto mb-2" />
+              <p className="font-medium text-sm">I'm an Expert</p>
+              <p className="text-xs opacity-70">Share my expertise</p>
+            </button>
+          </div>
+        )}
+
         {/* Auth Card */}
         <div className="glass-strong rounded-2xl p-8 shadow-card">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-display font-bold text-foreground mb-2">
-              {isLogin ? "Welcome Back" : "Create Account"}
+              {isLogin ? "Welcome Back" : isExpert ? "Join as Expert" : "Create Account"}
             </h1>
             <p className="text-muted-foreground">
               {isLogin
                 ? "Sign in to access your AI career tools"
+                : isExpert
+                ? "Help students achieve their career goals"
                 : "Start your journey to landing your dream job"}
             </p>
           </div>
@@ -179,7 +243,7 @@ const Auth = () => {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {isLogin ? "Sign In" : "Create Account"}
+                  {isLogin ? "Sign In" : isExpert ? "Continue as Expert" : "Create Account"}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -206,6 +270,20 @@ const Auth = () => {
             </button>
           </div>
         </div>
+
+        {/* Expert CTA on Login */}
+        {isLogin && (
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Are you an industry expert?</p>
+            <Link 
+              to="/auth?mode=signup&role=expert"
+              className="text-primary hover:text-primary/80 text-sm font-medium inline-flex items-center gap-1"
+            >
+              <Award className="w-4 h-4" />
+              Join as an Expert
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
