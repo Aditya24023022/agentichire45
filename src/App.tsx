@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { NetworkErrorBoundary } from "@/components/NetworkErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -29,44 +30,53 @@ import ExpertOnboarding from "./pages/ExpertOnboarding";
 import ExpertDashboard from "./pages/ExpertDashboard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/resume-optimizer" element={<ResumeOptimizer />} />
-          <Route path="/email-writer" element={<EmailWriter />} />
-          <Route path="/interview-prep" element={<InterviewPrep />} />
-          <Route path="/mock-interview" element={<MockInterview />} />
-          <Route path="/technical-interview" element={<TechnicalInterview />} />
-          <Route path="/ats-analyzer" element={<ATSAnalyzer />} />
-          <Route path="/cover-letter" element={<CoverLetter />} />
-          <Route path="/linkedin-optimizer" element={<LinkedInOptimizer />} />
-          <Route path="/skills-gap" element={<SkillsGap />} />
-          <Route path="/salary-coach" element={<SalaryCoach />} />
-          <Route path="/follow-up-email" element={<FollowUpEmail />} />
-          <Route path="/job-match" element={<JobMatch />} />
-          <Route path="/portfolio-describer" element={<PortfolioDescriber />} />
-          <Route path="/networking-messages" element={<NetworkingMessages />} />
-          <Route path="/career-advisor" element={<CareerAdvisor />} />
-          <Route path="/career-community" element={<CareerCommunity />} />
-          <Route path="/admin" element={<AdminPanel />} />
-          <Route path="/expert-onboarding" element={<ExpertOnboarding />} />
-          <Route path="/expert-dashboard" element={<ExpertDashboard />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <NetworkErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/resume-optimizer" element={<ResumeOptimizer />} />
+            <Route path="/email-writer" element={<EmailWriter />} />
+            <Route path="/interview-prep" element={<InterviewPrep />} />
+            <Route path="/mock-interview" element={<MockInterview />} />
+            <Route path="/technical-interview" element={<TechnicalInterview />} />
+            <Route path="/ats-analyzer" element={<ATSAnalyzer />} />
+            <Route path="/cover-letter" element={<CoverLetter />} />
+            <Route path="/linkedin-optimizer" element={<LinkedInOptimizer />} />
+            <Route path="/skills-gap" element={<SkillsGap />} />
+            <Route path="/salary-coach" element={<SalaryCoach />} />
+            <Route path="/follow-up-email" element={<FollowUpEmail />} />
+            <Route path="/job-match" element={<JobMatch />} />
+            <Route path="/portfolio-describer" element={<PortfolioDescriber />} />
+            <Route path="/networking-messages" element={<NetworkingMessages />} />
+            <Route path="/career-advisor" element={<CareerAdvisor />} />
+            <Route path="/career-community" element={<CareerCommunity />} />
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/expert-onboarding" element={<ExpertOnboarding />} />
+            <Route path="/expert-dashboard" element={<ExpertDashboard />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </NetworkErrorBoundary>
 );
 
 export default App;
