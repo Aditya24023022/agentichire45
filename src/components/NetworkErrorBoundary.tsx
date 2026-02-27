@@ -149,7 +149,7 @@ export const NetworkErrorBoundary = ({ children }: Props) => {
   return (
     <>
       {isSlowNetwork && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/90 text-yellow-950 text-center text-xs py-1 px-4 flex items-center justify-center gap-2">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-accent text-accent-foreground text-center text-xs py-1 px-4 flex items-center justify-center gap-2">
           <Wifi className="w-3 h-3" />
           Slow connection detected — some features may take longer to load
           <button
